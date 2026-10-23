@@ -1,0 +1,141 @@
+// Admin-only moderation, payments and revenue. Every handler checks the
+// admin role on the server.
+
+import { createServerFn } from '@tanstack/react-start'
+import { desc, eq, sql } from 'drizzle-orm'
+import { z } from 'zod'
+
+import { db } from '../../db/index.js'
+import { bids, listings, platformLedger } from '../../db/schema.js'
+import { requireAdmin } from './auth.server'
+import { applyRefund, getStripe, paymentsConfigured } from './payments.server'
+import { toListing } from './listings.server'
+import type { BidStatus } from './platform'
+
+export const getAdminOverview = createServerFn({ method: 'GET' }).handler(
+  async () => {
+    await requireAdmin()
+    const [allListings, recentBids, [totals], daily, monthly] =
+      await Promise.all([
+        db
+          .select()
+          .from(listings)
+          .orderBy(
+            sql`case ${listings.status} when 'pending' then 0 when 'approved' then 1 else 2 end`,
+            desc(listings.createdAt),
+          )
+          .limit(500),
+        db
+          .select({ bid: bids, listing: listings })
+          .from(bids)
+          .innerJoin(listings, eq(bids.listingId, listings.id))
+          .orderBy(desc(bids.createdAt))
+          .limit(200),
+        db
+          .select({
+            grossCents: sql<number>`coalesce(sum(${platformLedger.grossCents}) filter (where ${platformLedger.kind} = 'fee'), 0)::int`,
+            feeCents: sql<number>`coalesce(sum(${platformLedger.feeCents}) filter (where ${platformLedger.kind} = 'fee'), 0)::int`,
+            refundedGrossCents: sql<number>`coalesce(-sum(${platformLedger.grossCents}) filter (where ${platformLedger.kind} = 'refund'), 0)::int`,
+            refundedFeeCents: sql<number>`coalesce(-sum(${platformLedger.feeCents}) filter (where ${platformLedger.kind} = 'refund'), 0)::int`,
+            paidBids: sql<number>`(count(*) filter (where ${platformLedger.kind} = 'fee'))::int`,
+          })
+          .from(platformLedger),
+        revenueBy('day'),
+        revenueBy('month'),
+      ])
+
+    return {
+      paymentsReady: paymentsConfigured(),
+      listings: allListings.map((row) => ({
+        ...toListing(row),
+        contactEmail: row.contactEmail,
+      })),
+      bids: recentBids.map(({ bid, listing }) => ({
+        id: String(bid.id),
+        status: bid.status as BidStatus,
+        bidderName: bid.bidderName,
+        amountCents: bid.amountCents,
+        feeCents: bid.feeCents,
+        totalChargeCents: bid.totalChargeCents,
+        createdAt: bid.createdAt.toISOString(),
+        paidAt: bid.paidAt?.toISOString() ?? null,
+        hasPaymentIntent: Boolean(bid.stripePaymentIntentId),
+        listing: { slug: listing.slug, title: listing.title },
+      })),
+      revenue: {
+        grossCents: totals?.grossCents ?? 0,
+        feeCents: totals?.feeCents ?? 0,
+        refundedGrossCents: totals?.refundedGrossCents ?? 0,
+        refundedFeeCents: totals?.refundedFeeCents ?? 0,
+        netFeeCents: (totals?.feeCents ?? 0) - (totals?.refundedFeeCents ?? 0),
+        paidBids: totals?.paidBids ?? 0,
+      },
+      daily,
+      monthly,
+    }
+  },
+)
+
+async function revenueBy(unit: 'day' | 'month') {
+  const period = sql<string>`to_char(date_trunc(${unit}, ${platformLedger.createdAt} at time zone 'UTC'), ${unit === 'day' ? 'YYYY-MM-DD' : 'YYYY-MM'})`
+  return db
+    .select({
+      period,
+      grossCents: sql<number>`coalesce(sum(${platformLedger.grossCents}), 0)::int`,
+      feeCents: sql<number>`coalesce(sum(${platformLedger.feeCents}), 0)::int`,
+      refundCents: sql<number>`coalesce(-sum(${platformLedger.grossCents} + ${platformLedger.feeCents}) filter (where ${platformLedger.kind} = 'refund'), 0)::int`,
+    })
+    .from(platformLedger)
+    .groupBy(period)
+    .orderBy(desc(period))
+    .limit(unit === 'day' ? 30 : 12)
+}
+
+export const setListingStatus = createServerFn({ method: 'POST' })
+  .validator(
+    z.object({
+      listingId: z.coerce.number().int().positive(),
+      status: z.enum(['approved', 'removed', 'pending']),
+    }),
+  )
+  .handler(async ({ data }) => {
+    await requireAdmin()
+    const [row] = await db
+      .update(listings)
+      .set({ status: data.status, reviewedAt: sql`now()` })
+      .where(eq(listings.id, data.listingId))
+      .returning({ id: listings.id })
+    if (!row) throw new Error('Listing not found.')
+    return { ok: true }
+  })
+
+/**
+ * Issues a full Stripe refund. The bid leaves the rankings once Stripe
+ * confirms the refund (immediately if it succeeded, otherwise via webhook).
+ */
+export const refundBid = createServerFn({ method: 'POST' })
+  .validator(z.object({ bidId: z.coerce.number().int().positive() }))
+  .handler(async ({ data }) => {
+    await requireAdmin()
+    const stripe = getStripe()
+    if (!stripe) throw new Error('Payments are not configured yet.')
+    const [bid] = await db.select().from(bids).where(eq(bids.id, data.bidId))
+    if (!bid || bid.status !== 'paid' || !bid.stripePaymentIntentId) {
+      throw new Error('Only paid bids can be refunded.')
+    }
+    const refund = await stripe.refunds.create(
+      {
+        payment_intent: bid.stripePaymentIntentId,
+        reason: 'requested_by_customer',
+      },
+      { idempotencyKey: `bidmysite-refund-${bid.id}` },
+    )
+    if (refund.status === 'succeeded') {
+      await db.transaction((tx) => applyRefund(tx, bid.stripePaymentIntentId!))
+      return { status: 'refunded' as const }
+    }
+    if (refund.status === 'failed' || refund.status === 'canceled') {
+      throw new Error('Stripe could not process this refund.')
+    }
+    return { status: 'processing' as const }
+  })
