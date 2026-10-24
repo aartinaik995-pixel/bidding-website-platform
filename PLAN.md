@@ -4,53 +4,60 @@ BidMySite is a public leaderboard where website owners submit their sites and pl
 
 The product is delivered in milestones, each one shippable on its own.
 
+## Repository audit — October 23, 2026
+
+The repository contains working source implementations for account sign-up and recovery, database-backed listings and bids, server-verified Stripe checkout and refunds, periodic leaderboard refresh, and the admin/revenue dashboard. This is a code review only: no Netlify connection is available here, so the deployed database, Identity settings, Stripe credentials, webhook endpoint, and live payment mode have not been verified. Stripe is the only payment provider implemented; Razorpay and PayPal are not present.
+
+The terms, privacy, and refund pages are operational drafts. The operator's legal name, governing region, and privacy/support contact are not in the repository and must be supplied before those pages can be treated as final.
+
 ## Milestone 1 — Product surface ✅
 
-- Branded homepage, live leaderboard, Submit Website page, website details page (`/site/$slug`), user dashboard and How it works page. All are mobile-friendly.
-- Shared platform rules in `src/lib/platform.ts` (minimum and maximum bid, 10% fee, ranking order).
-- The data layer is in `src/lib/fixtures.ts` and is deliberately empty, so every screen shows an honest empty state ("Unclaimed", "No bids yet").
-- Listing requests from the Submit page are stored with Netlify Forms, so early submissions are not lost.
-- The bid panel shows the fee breakdown, but checkout stays disabled until Milestone 4.
+- Branded homepage, live leaderboard, Submit Website page, website details page (`/site/$slug`), user dashboard and How it works page.
+- Shared rules in `src/lib/platform.ts` set the bid range, 10% fee and ranking order.
+- Live listings and bids come from Netlify Database; empty states remain honest and no sample bids are used.
+- New listings publish immediately. Only listings with verified paid bids enter the ranked leaderboard.
 
-## Milestone 2 — User accounts
+## Milestone 2 — User accounts ✅
 
-- Netlify Identity (`@netlify/identity`) with email/password sign-up and login, password reset and optional Google sign-in.
-- Header shows signed-in state; `/dashboard` requires sign-in.
-- An `admin` role (in Identity app metadata) for the owner, checked on the server.
+- Netlify Identity provides email/password sign-up, login, and password recovery.
+- The header shows signed-in state; `/dashboard` requires sign-in.
+- The `admin` role is read from server-verified Identity user metadata and checked on protected server functions.
+- Google sign-in is not implemented. Production Identity configuration has not been checked.
 
-## Milestone 3 — Database and real listings
+## Milestone 3 — Database and real listings ✅
 
-- Netlify Database (managed Postgres) with Drizzle ORM, schema in `db/schema.ts`. Migrations are generated at deploy time.
+- Netlify Database (managed Postgres) with Drizzle ORM; schema is in `db/schema.ts` and migrations are deployed from `netlify/database/migrations`.
 - Tables:
   - `users`: mirrors Identity users.
-  - `listings`: url, title, description, owner, and a status of pending, approved or removed.
+  - `listings`: URL, title, description, owner, and a status of approved or removed. The migration publishes legacy pending listings.
   - `bids`: listing, bidder, amount, fee, status (pending, paid, failed or refunded), Stripe session and payment IDs.
   - `platform_ledger`: one row per fee or refund, for revenue reporting.
-- Swap the functions in `src/lib/fixtures.ts` for server functions that query the database. The UI keeps the same function shapes.
-- Submit page writes a `pending` listing tied to the signed-in user. Import any Netlify Forms requests received before then.
+- Submissions are authenticated, validated, rate-limited, and persisted as live listings.
+- Netlify Forms import is not part of the current repository; no Forms inbox was accessible during this audit.
 
-## Milestone 4 — Secure payments (Stripe)
+## Milestone 4 — Secure payments (Stripe code implemented; activation unverified)
 
 - "Place a bid" creates a `pending` bid and a Stripe Checkout Session on the server. The amount is computed server-side from `PLATFORM`, never trusted from the browser.
-- A Stripe webhook (`checkout.session.completed`, `charge.refunded`) verifies the signature using the webhook secret. Then, in one transaction, it marks the bid `paid`, updates the listing totals and writes a ledger row. It is idempotent on the Stripe event ID.
+- A Stripe webhook verifies the signature using the webhook secret. It updates bid status, listing totals, and the platform ledger transactionally and idempotently.
 - The success page reads the bid status from the database and shows "Payment confirmed" only when the status is `paid`. Otherwise it shows "Waiting for confirmation".
-- Credentials needed as Netlify environment variables: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`. Use test mode first.
+- Checkout is disabled unless both `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` are present. Their configured values and the webhook endpoint were not accessible for this audit.
+- No Razorpay or PayPal integration exists. Use Stripe test mode first; variable presence alone does not verify a working payment setup.
 
-## Milestone 5 — Live leaderboard
+## Milestone 5 — Live leaderboard ✅ (email notifications remain)
 
-- Leaderboard, homepage and details pages refresh on an interval (or via server-sent events) so new verified bids appear without a reload.
-- "You've been outbid" email notifications.
+- Homepage, leaderboard, and details pages refresh every 15 seconds while visible so newly verified bids appear without a reload.
+- "You've been outbid" email notifications are not implemented.
 
-## Milestone 6 — Admin dashboard
+## Milestone 6 — Admin dashboard ✅
 
 - `/admin`, available only to the admin role:
-  - a moderation queue to approve or remove listings
+  - live listings can be removed or restored; submissions no longer wait for approval
   - all bids with their payment status
   - refunds issued through Stripe
 - Revenue: gross bids, platform fees earned, refunds and net, by day and month, with CSV export.
 
-## Milestone 7 — Hardening and launch
+## Milestone 7 — Hardening and launch (code added; production setup outstanding)
 
-- Rate limiting on submissions and checkout creation, URL validation and blocklist, and `rel="nofollow ugc"` on all outbound links (already in place).
-- Terms of service, privacy policy and refund policy pages.
-- Switch Stripe to live mode and set up payouts to the owner's bank account in the Stripe dashboard.
+- Database-backed rate limits protect listing submission and checkout creation. Listing URLs reject local/reserved hosts, credentials, and IP literals; outbound user links use `rel="nofollow ugc"`.
+- Terms of Service, Privacy Policy, and Refund Policy pages are present as drafts. Add the verified operator identity, governing region, support/privacy contact, and retention period before public launch.
+- Configure Netlify Identity and Database, then add Stripe test credentials and a verified webhook endpoint. Switch to live mode and configure payouts only after test payments and refunds are confirmed. No production deployment or live payment was performed in this audit.

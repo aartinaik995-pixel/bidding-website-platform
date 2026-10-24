@@ -1,27 +1,27 @@
 // Admin-only moderation, payments and revenue. Every handler checks the
 // admin role on the server.
 
-import { createServerFn } from '@tanstack/react-start'
-import { desc, eq, sql } from 'drizzle-orm'
-import { z } from 'zod'
+import { createServerFn } from "@tanstack/react-start";
+import { desc, eq, sql } from "drizzle-orm";
+import { z } from "zod";
 
-import { db } from '../../db/index.js'
-import { bids, listings, platformLedger } from '../../db/schema.js'
-import { requireAdmin } from './auth.server'
-import { applyRefund, getStripe, paymentsConfigured } from './payments.server'
-import { toListing } from './listings.server'
-import type { BidStatus } from './platform'
+import { db } from "../../db/index.js";
+import { bids, listings, platformLedger } from "../../db/schema.js";
+import { requireAdmin } from "./auth.server";
+import { applyRefund, getStripe, paymentsConfigured } from "./payments.server";
+import { toListing } from "./listings.server";
+import type { BidStatus } from "./platform";
 
-export const getAdminOverview = createServerFn({ method: 'GET' }).handler(
+export const getAdminOverview = createServerFn({ method: "GET" }).handler(
   async () => {
-    await requireAdmin()
+    await requireAdmin();
     const [allListings, recentBids, [totals], daily, monthly] =
       await Promise.all([
         db
           .select()
           .from(listings)
           .orderBy(
-            sql`case ${listings.status} when 'pending' then 0 when 'approved' then 1 else 2 end`,
+            sql`case ${listings.status} when 'removed' then 1 else 0 end`,
             desc(listings.createdAt),
           )
           .limit(500),
@@ -40,9 +40,9 @@ export const getAdminOverview = createServerFn({ method: 'GET' }).handler(
             paidBids: sql<number>`(count(*) filter (where ${platformLedger.kind} = 'fee'))::int`,
           })
           .from(platformLedger),
-        revenueBy('day'),
-        revenueBy('month'),
-      ])
+        revenueBy("day"),
+        revenueBy("month"),
+      ]);
 
     return {
       paymentsReady: paymentsConfigured(),
@@ -72,12 +72,12 @@ export const getAdminOverview = createServerFn({ method: 'GET' }).handler(
       },
       daily,
       monthly,
-    }
+    };
   },
-)
+);
 
-async function revenueBy(unit: 'day' | 'month') {
-  const period = sql<string>`to_char(date_trunc(${unit}, ${platformLedger.createdAt} at time zone 'UTC'), ${unit === 'day' ? 'YYYY-MM-DD' : 'YYYY-MM'})`
+async function revenueBy(unit: "day" | "month") {
+  const period = sql<string>`to_char(date_trunc(${unit}, ${platformLedger.createdAt} at time zone 'UTC'), ${unit === "day" ? "YYYY-MM-DD" : "YYYY-MM"})`;
   return db
     .select({
       period,
@@ -88,54 +88,54 @@ async function revenueBy(unit: 'day' | 'month') {
     .from(platformLedger)
     .groupBy(period)
     .orderBy(desc(period))
-    .limit(unit === 'day' ? 30 : 12)
+    .limit(unit === "day" ? 30 : 12);
 }
 
-export const setListingStatus = createServerFn({ method: 'POST' })
+export const setListingStatus = createServerFn({ method: "POST" })
   .validator(
     z.object({
       listingId: z.coerce.number().int().positive(),
-      status: z.enum(['approved', 'removed', 'pending']),
+      status: z.enum(["approved", "removed"]),
     }),
   )
   .handler(async ({ data }) => {
-    await requireAdmin()
+    await requireAdmin();
     const [row] = await db
       .update(listings)
       .set({ status: data.status, reviewedAt: sql`now()` })
       .where(eq(listings.id, data.listingId))
-      .returning({ id: listings.id })
-    if (!row) throw new Error('Listing not found.')
-    return { ok: true }
-  })
+      .returning({ id: listings.id });
+    if (!row) throw new Error("Listing not found.");
+    return { ok: true };
+  });
 
 /**
  * Issues a full Stripe refund. The bid leaves the rankings once Stripe
  * confirms the refund (immediately if it succeeded, otherwise via webhook).
  */
-export const refundBid = createServerFn({ method: 'POST' })
+export const refundBid = createServerFn({ method: "POST" })
   .validator(z.object({ bidId: z.coerce.number().int().positive() }))
   .handler(async ({ data }) => {
-    await requireAdmin()
-    const stripe = getStripe()
-    if (!stripe) throw new Error('Payments are not configured yet.')
-    const [bid] = await db.select().from(bids).where(eq(bids.id, data.bidId))
-    if (!bid || bid.status !== 'paid' || !bid.stripePaymentIntentId) {
-      throw new Error('Only paid bids can be refunded.')
+    await requireAdmin();
+    const stripe = getStripe();
+    if (!stripe) throw new Error("Payments are not configured yet.");
+    const [bid] = await db.select().from(bids).where(eq(bids.id, data.bidId));
+    if (!bid || bid.status !== "paid" || !bid.stripePaymentIntentId) {
+      throw new Error("Only paid bids can be refunded.");
     }
     const refund = await stripe.refunds.create(
       {
         payment_intent: bid.stripePaymentIntentId,
-        reason: 'requested_by_customer',
+        reason: "requested_by_customer",
       },
       { idempotencyKey: `bidmysite-refund-${bid.id}` },
-    )
-    if (refund.status === 'succeeded') {
-      await db.transaction((tx) => applyRefund(tx, bid.stripePaymentIntentId!))
-      return { status: 'refunded' as const }
+    );
+    if (refund.status === "succeeded") {
+      await db.transaction((tx) => applyRefund(tx, bid.stripePaymentIntentId!));
+      return { status: "refunded" as const };
     }
-    if (refund.status === 'failed' || refund.status === 'canceled') {
-      throw new Error('Stripe could not process this refund.')
+    if (refund.status === "failed" || refund.status === "canceled") {
+      throw new Error("Stripe could not process this refund.");
     }
-    return { status: 'processing' as const }
-  })
+    return { status: "processing" as const };
+  });

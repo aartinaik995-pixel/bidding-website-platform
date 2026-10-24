@@ -1,65 +1,71 @@
-import { useState, type FormEvent } from 'react'
-import { createFileRoute, Link, useRouter } from '@tanstack/react-router'
-import { useServerFn } from '@tanstack/react-start'
-import { CheckCircle2, Eye, LogIn } from 'lucide-react'
+import { useState, type FormEvent } from "react";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { CheckCircle2, Eye, LogIn } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { ListingHeader } from '@/components/listing-view'
-import { getSessionUser } from '@/lib/account.functions'
-import { submitListing } from '@/lib/listings.functions'
-import { feePercentLabel, formatMoney, PLATFORM } from '@/lib/platform'
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { ListingHeader } from "@/components/listing-view";
+import { getPaymentsReady, getSessionUser } from "@/lib/account.functions";
+import { submitListing } from "@/lib/listings.functions";
+import { feePercentLabel, formatMoney, PLATFORM } from "@/lib/platform";
 
-export const Route = createFileRoute('/submit')({
-  head: () => ({ meta: [{ title: 'Submit your website · BidMySite' }] }),
-  loader: () => getSessionUser(),
+export const Route = createFileRoute("/submit")({
+  head: () => ({ meta: [{ title: "Submit your website · BidMySite" }] }),
+  loader: async () => {
+    const [user, paymentsReady] = await Promise.all([
+      getSessionUser(),
+      getPaymentsReady(),
+    ]);
+    return { user, paymentsReady };
+  },
   component: SubmitPage,
-})
+});
 
-type State = 'idle' | 'pending' | 'success' | 'error'
+type State = "idle" | "pending" | "success" | "error";
 
-const DESCRIPTION_MAX = 280
+const DESCRIPTION_MAX = 280;
 
 function SubmitPage() {
-  const user = Route.useLoaderData()
-  const router = useRouter()
-  const save = useServerFn(submitListing)
-  const [state, setState] = useState<State>('idle')
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [savedSlug, setSavedSlug] = useState<string | null>(null)
+  const { user, paymentsReady } = Route.useLoaderData();
+  const router = useRouter();
+  const save = useServerFn(submitListing);
+  const [state, setState] = useState<State>("idle");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [savedSlug, setSavedSlug] = useState<string | null>(null);
   const [preview, setPreview] = useState({
-    url: '',
-    title: '',
-    description: '',
-  })
+    url: "",
+    title: "",
+    description: "",
+  });
 
   async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (state === 'pending') return
-    const fields = new FormData(event.currentTarget)
-    const value = (key: string) => String(fields.get(key) ?? '')
-    setState('pending')
-    setErrorMessage(null)
+    event.preventDefault();
+    if (state === "pending") return;
+    const fields = new FormData(event.currentTarget);
+    const value = (key: string) => String(fields.get(key) ?? "");
+    setState("pending");
+    setErrorMessage(null);
     try {
       const { slug } = await save({
         data: {
-          url: value('url'),
-          title: value('title'),
-          description: value('description'),
-          ownerName: value('name'),
+          url: value("url"),
+          title: value("title"),
+          description: value("description"),
+          ownerName: value("name"),
         },
-      })
-      setSavedSlug(slug)
-      setState('success')
-      void router.invalidate()
+      });
+      setSavedSlug(slug);
+      setState("success");
+      void router.invalidate();
     } catch (error) {
-      const message = error instanceof Error ? error.message : ''
+      const message = error instanceof Error ? error.message : "";
       // Validation errors from the server arrive as JSON issue lists; keep the copy friendly.
-      setErrorMessage(message && !message.startsWith('[') ? message : null)
-      setState('error')
+      setErrorMessage(message && !message.startsWith("[") ? message : null);
+      setState("error");
     }
   }
 
@@ -73,23 +79,23 @@ function SubmitPage() {
           Put your site on the board
         </h1>
         <p className="mt-3 text-muted-foreground">
-          Tell us about your website. Once your listing is approved and your
-          first bid is verified, it appears on the live leaderboard.
+          Tell us about your website. Your public listing is published as soon
+          as you submit it; it joins the leaderboard after its first bid is
+          verified.
         </p>
       </div>
 
       <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_1fr]">
-        {state === 'success' ? (
+        {state === "success" ? (
           <div className="rounded-2xl border bg-card p-8">
             <CheckCircle2 className="size-10 text-live" />
             <h2 className="mt-4 text-2xl font-bold">
-              Listing submitted for review
+              Your website is published
             </h2>
             <p className="mt-2 text-muted-foreground">
-              Your website is saved. It isn't on the leaderboard yet: a
-              moderator reviews it first, then bidding opens on its page and it
-              ranks as soon as its first payment is verified. You can follow its
-              status on your dashboard.
+              Your public listing is live. It appears in rankings only after a
+              payment provider confirms its first bid. You can share its page
+              now or follow bids from your dashboard.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               {savedSlug ? (
@@ -106,8 +112,8 @@ function SubmitPage() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  setPreview({ url: '', title: '', description: '' })
-                  setState('idle')
+                  setPreview({ url: "", title: "", description: "" });
+                  setState("idle");
                 }}
               >
                 Submit another website
@@ -124,7 +130,7 @@ function SubmitPage() {
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <Button asChild>
-                <Link to="/login" search={{ redirect: '/submit' }}>
+                <Link to="/login" search={{ redirect: "/submit" }}>
                   Sign in or create an account
                 </Link>
               </Button>
@@ -134,20 +140,20 @@ function SubmitPage() {
           <form
             onSubmit={submit}
             onChange={(e) => {
-              if (state !== 'pending') setState('idle')
-              const form = e.currentTarget
+              if (state !== "pending") setState("idle");
+              const form = e.currentTarget;
               setPreview({
-                url: (form.elements.namedItem('url') as HTMLInputElement).value,
-                title: (form.elements.namedItem('title') as HTMLInputElement)
+                url: (form.elements.namedItem("url") as HTMLInputElement).value,
+                title: (form.elements.namedItem("title") as HTMLInputElement)
                   .value,
                 description: (
-                  form.elements.namedItem('description') as HTMLTextAreaElement
+                  form.elements.namedItem("description") as HTMLTextAreaElement
                 ).value,
-              })
+              });
             }}
             className="rounded-2xl border bg-card p-6 sm:p-8"
           >
-            <fieldset disabled={state === 'pending'} className="space-y-6">
+            <fieldset disabled={state === "pending"} className="space-y-6">
               <legend className="sr-only">Website details</legend>
               <div className="space-y-2">
                 <Label htmlFor="url">Website URL</Label>
@@ -205,24 +211,27 @@ function SubmitPage() {
                 </p>
               </div>
 
-              {state === 'error' && (
+              {state === "error" && (
                 <Alert variant="destructive" role="alert">
                   <AlertTitle>Your listing wasn't saved</AlertTitle>
                   <AlertDescription>
                     {errorMessage ??
-                      'Check the website address (it must be a public http:// or https:// URL), a title of at least 2 characters and a description of at least 10.'}{' '}
+                      "Check the website address (it must be a public http:// or https:// URL), a title of at least 2 characters and a description of at least 10."}{" "}
                     Your details are still here.
                   </AlertDescription>
                 </Alert>
               )}
 
               <Button type="submit" size="lg" className="w-full">
-                {state === 'pending' ? 'Saving…' : 'Submit for review'}
+                {state === "pending" ? "Publishing…" : "Publish website"}
               </Button>
               <p className="text-xs text-muted-foreground">
-                Submitting is free. Bids start at{' '}
-                {formatMoney(PLATFORM.minBidCents)} plus a {feePercentLabel()}{' '}
-                platform fee, paid securely through Stripe.
+                Submitting is free. Bids start at{" "}
+                {formatMoney(PLATFORM.minBidCents)} plus a {feePercentLabel()}{" "}
+                platform fee.{" "}
+                {paymentsReady
+                  ? "Stripe Checkout is configured for secure payment."
+                  : "Checkout is unavailable until payment credentials are configured; no payment can be taken yet."}
               </p>
             </fieldset>
           </form>
@@ -252,5 +261,5 @@ function SubmitPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

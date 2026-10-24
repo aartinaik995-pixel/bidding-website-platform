@@ -1,16 +1,16 @@
-import { useState } from 'react'
+import { useState } from "react";
 import {
   createFileRoute,
   Link,
   redirect,
   useRouter,
-} from '@tanstack/react-router'
-import { useServerFn } from '@tanstack/react-start'
-import { AlertTriangle, Download, ShieldAlert } from 'lucide-react'
-import { toast } from 'sonner'
+} from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { AlertTriangle, Download, ShieldAlert } from "lucide-react";
+import { toast } from "sonner";
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -18,37 +18,37 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { BidStatusBadge, ListingStatusBadge } from '@/components/status-badges'
-import { getSessionUser } from '@/lib/account.functions'
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BidStatusBadge, ListingStatusBadge } from "@/components/status-badges";
+import { getSessionUser } from "@/lib/account.functions";
 import {
   getAdminOverview,
   refundBid,
   setListingStatus,
-} from '@/lib/admin.functions'
+} from "@/lib/admin.functions";
 import {
   formatMoney,
   hostnameOf,
   timeAgo,
   type BidStatus,
   type ListingStatus,
-} from '@/lib/platform'
+} from "@/lib/platform";
 
-export const Route = createFileRoute('/admin')({
-  head: () => ({ meta: [{ title: 'Admin · BidMySite' }] }),
+export const Route = createFileRoute("/admin")({
+  head: () => ({ meta: [{ title: "Admin · BidMySite" }] }),
   beforeLoad: async ({ location }) => {
-    const user = await getSessionUser()
+    const user = await getSessionUser();
     if (!user)
-      throw redirect({ to: '/login', search: { redirect: location.href } })
-    return { isAdmin: user.isAdmin }
+      throw redirect({ to: "/login", search: { redirect: location.href } });
+    return { isAdmin: user.isAdmin };
   },
   loader: async ({ context }) => (context.isAdmin ? getAdminOverview() : null),
   component: AdminPage,
-})
+});
 
 function AdminPage() {
-  const data = Route.useLoaderData()
+  const data = Route.useLoaderData();
   if (!data) {
     return (
       <div className="mx-auto max-w-xl px-4 py-14 sm:px-6">
@@ -62,11 +62,10 @@ function AdminPage() {
           <Link to="/dashboard">Go to your dashboard</Link>
         </Button>
       </div>
-    )
+    );
   }
 
-  const { revenue, listings, bids, daily, monthly, paymentsReady } = data
-  const pendingCount = listings.filter((l) => l.status === 'pending').length
+  const { revenue, listings, bids, daily, monthly, paymentsReady } = data;
 
   return (
     <div className="mx-auto max-w-content px-4 py-12 sm:px-6">
@@ -79,8 +78,8 @@ function AdminPage() {
             Platform dashboard
           </h1>
           <p className="mt-3 max-w-xl text-muted-foreground">
-            Moderate listings, review payments and track platform fee revenue.
-            All figures come from Stripe-verified payments.
+            Manage live listings, review payment status and track platform-fee
+            revenue. Paid figures come from server-verified payments.
           </p>
         </div>
         <Button asChild variant="outline">
@@ -95,21 +94,22 @@ function AdminPage() {
           <AlertTriangle />
           <AlertTitle>Payments are not connected</AlertTitle>
           <AlertDescription>
-            Checkout stays disabled until the Stripe secret key and webhook
-            signing secret are set as environment variables for this project.
+            Stripe Checkout stays disabled until STRIPE_SECRET_KEY and
+            STRIPE_WEBHOOK_SECRET are configured in the hosting environment.
+            Secret values are never shown here.
           </AlertDescription>
         </Alert>
       )}
 
       <dl className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
-          ['Gross bids', formatMoney(revenue.grossCents)],
-          ['Fees earned', formatMoney(revenue.feeCents)],
+          ["Gross bids", formatMoney(revenue.grossCents)],
+          ["Fees earned", formatMoney(revenue.feeCents)],
           [
-            'Refunded',
+            "Refunded",
             formatMoney(revenue.refundedGrossCents + revenue.refundedFeeCents),
           ],
-          ['Net fee revenue', formatMoney(revenue.netFeeCents)],
+          ["Net fee revenue", formatMoney(revenue.netFeeCents)],
         ].map(([label, value]) => (
           <div key={label} className="rounded-xl border bg-card p-4">
             <dt className="text-xs text-muted-foreground">{label}</dt>
@@ -118,16 +118,14 @@ function AdminPage() {
         ))}
       </dl>
 
-      <Tabs defaultValue="moderation" className="mt-8">
+      <Tabs defaultValue="listings" className="mt-8">
         <TabsList className="flex-wrap">
-          <TabsTrigger value="moderation">
-            Listings{pendingCount > 0 && ` (${pendingCount} to review)`}
-          </TabsTrigger>
+          <TabsTrigger value="listings">Listings</TabsTrigger>
           <TabsTrigger value="bids">Bids</TabsTrigger>
           <TabsTrigger value="revenue">Revenue</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="moderation" className="mt-4">
+        <TabsContent value="listings" className="mt-4">
           {listings.length === 0 ? (
             <Empty>No websites have been submitted yet.</Empty>
           ) : (
@@ -161,7 +159,7 @@ function AdminPage() {
                             className="hover:underline"
                           >
                             {hostnameOf(listing.url)}
-                          </a>{' '}
+                          </a>{" "}
                           · {timeAgo(listing.createdAt)}
                         </p>
                         <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
@@ -181,7 +179,7 @@ function AdminPage() {
                         {formatMoney(listing.totalCents)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <ModerationActions
+                        <ListingActions
                           id={listing.id}
                           status={listing.status}
                           hasPaidBids={listing.totalCents > 0}
@@ -259,7 +257,7 @@ function AdminPage() {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }
 
 function Empty({ children }: { children: React.ReactNode }) {
@@ -267,62 +265,60 @@ function Empty({ children }: { children: React.ReactNode }) {
     <p className="rounded-2xl border border-dashed bg-card px-6 py-12 text-center text-sm text-muted-foreground">
       {children}
     </p>
-  )
+  );
 }
 
-function ModerationActions({
+function ListingActions({
   id,
   status,
   hasPaidBids,
 }: {
-  id: string
-  status: ListingStatus
-  hasPaidBids: boolean
+  id: string;
+  status: ListingStatus;
+  hasPaidBids: boolean;
 }) {
-  const router = useRouter()
-  const update = useServerFn(setListingStatus)
-  const [pending, setPending] = useState(false)
+  const router = useRouter();
+  const update = useServerFn(setListingStatus);
+  const [pending, setPending] = useState(false);
 
-  async function set(next: ListingStatus) {
-    setPending(true)
+  async function set(next: "approved" | "removed") {
+    setPending(true);
     try {
-      await update({ data: { listingId: Number(id), status: next } })
+      await update({ data: { listingId: Number(id), status: next } });
       toast.success(
-        next === 'approved'
-          ? 'Listing approved. Bidding is open.'
-          : next === 'removed'
-            ? hasPaidBids
-              ? 'Listing removed. Refund its paid bids from the Bids tab.'
-              : 'Listing removed.'
-            : 'Listing moved back to review.',
-      )
-      await router.invalidate()
+        next === "approved"
+          ? "Listing restored and bidding is open."
+          : hasPaidBids
+            ? "Listing removed. Refund its paid bids from the Bids tab."
+            : "Listing removed.",
+      );
+      await router.invalidate();
     } catch {
-      toast.error('Could not update the listing.')
+      toast.error("Could not update the listing.");
     } finally {
-      setPending(false)
+      setPending(false);
     }
   }
 
   return (
     <div className="flex justify-end gap-2">
-      {status !== 'approved' && (
-        <Button size="sm" disabled={pending} onClick={() => set('approved')}>
-          Approve
-        </Button>
-      )}
-      {status !== 'removed' && (
+      {status !== "removed" && (
         <Button
           size="sm"
           variant="outline"
           disabled={pending}
-          onClick={() => set('removed')}
+          onClick={() => set("removed")}
         >
           Remove
         </Button>
       )}
+      {status === "removed" && (
+        <Button size="sm" disabled={pending} onClick={() => set("approved")}>
+          Restore
+        </Button>
+      )}
     </div>
-  )
+  );
 }
 
 function RefundButton({
@@ -330,60 +326,60 @@ function RefundButton({
   status,
   canRefund,
 }: {
-  id: string
-  status: BidStatus
-  canRefund: boolean
+  id: string;
+  status: BidStatus;
+  canRefund: boolean;
 }) {
-  const router = useRouter()
-  const refund = useServerFn(refundBid)
-  const [pending, setPending] = useState(false)
-  if (status !== 'paid' || !canRefund) return null
+  const router = useRouter();
+  const refund = useServerFn(refundBid);
+  const [pending, setPending] = useState(false);
+  if (status !== "paid" || !canRefund) return null;
 
   async function run() {
     if (
       !window.confirm(
-        'Refund this bid in full through Stripe? It will be removed from the rankings.',
+        "Refund this bid in full through Stripe? It will be removed from the rankings.",
       )
     )
-      return
-    setPending(true)
+      return;
+    setPending(true);
     try {
-      const result = await refund({ data: { bidId: Number(id) } })
+      const result = await refund({ data: { bidId: Number(id) } });
       toast.success(
-        result.status === 'refunded'
-          ? 'Refunded. The bid no longer counts toward rankings.'
-          : 'Refund submitted. The bid is removed once Stripe confirms it.',
-      )
-      await router.invalidate()
+        result.status === "refunded"
+          ? "Refunded. The bid no longer counts toward rankings."
+          : "Refund submitted. The bid is removed once Stripe confirms it.",
+      );
+      await router.invalidate();
     } catch (error) {
       toast.error(
         error instanceof Error && error.message
           ? error.message
-          : 'Refund failed.',
-      )
+          : "Refund failed.",
+      );
     } finally {
-      setPending(false)
+      setPending(false);
     }
   }
 
   return (
     <Button size="sm" variant="outline" disabled={pending} onClick={run}>
-      {pending ? 'Refunding…' : 'Refund'}
+      {pending ? "Refunding…" : "Refund"}
     </Button>
-  )
+  );
 }
 
 function RevenueTable({
   title,
   rows,
 }: {
-  title: string
+  title: string;
   rows: {
-    period: string
-    grossCents: number
-    feeCents: number
-    refundCents: number
-  }[]
+    period: string;
+    grossCents: number;
+    feeCents: number;
+    refundCents: number;
+  }[];
 }) {
   return (
     <section className="rounded-2xl border bg-card p-5">
@@ -423,5 +419,5 @@ function RevenueTable({
         </div>
       )}
     </section>
-  )
+  );
 }

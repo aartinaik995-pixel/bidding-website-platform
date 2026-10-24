@@ -1,20 +1,20 @@
-import { useState } from 'react'
-import { Link, useLocation } from '@tanstack/react-router'
-import { useServerFn } from '@tanstack/react-start'
-import { Lock } from 'lucide-react'
+import { useState } from "react";
+import { Link, useLocation } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { Lock } from "lucide-react";
 
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { createBidCheckout } from '@/lib/account.functions'
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { createBidCheckout } from "@/lib/account.functions";
 import {
   feeBreakdown,
   feePercentLabel,
   formatMoney,
   isValidBidAmount,
   PLATFORM,
-} from '@/lib/platform'
+} from "@/lib/platform";
 
 /**
  * Bid amount picker with a transparent fee breakdown. "Pay" sends only the
@@ -30,43 +30,48 @@ export function BidPanel({
   signedIn,
   paymentsReady,
 }: {
-  listingId: string
-  currentTotalCents: number
-  leaderTotalCents: number
-  isLeader: boolean
-  open: boolean
-  signedIn: boolean
-  paymentsReady: boolean
+  listingId: string;
+  currentTotalCents: number;
+  leaderTotalCents: number;
+  isLeader: boolean;
+  open: boolean;
+  signedIn: boolean;
+  paymentsReady: boolean;
 }) {
-  const location = useLocation()
-  const startCheckout = useServerFn(createBidCheckout)
-  const [pending, setPending] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const location = useLocation();
+  const startCheckout = useServerFn(createBidCheckout);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const toLead = isLeader
     ? PLATFORM.minBidCents
-    : Math.max(PLATFORM.minBidCents, leaderTotalCents - currentTotalCents + 100)
-  const [dollars, setDollars] = useState(String(toLead / 100))
-  const cents = Math.round(Number(dollars) * 100)
-  const valid = isValidBidAmount(cents)
-  const { feeCents, totalChargeCents } = feeBreakdown(valid ? cents : 0)
-  const presets = [toLead, toLead + 500, toLead + 2000].filter(isValidBidAmount)
+    : Math.max(
+        PLATFORM.minBidCents,
+        leaderTotalCents - currentTotalCents + 100,
+      );
+  const [dollars, setDollars] = useState(String(toLead / 100));
+  const cents = Math.round(Number(dollars) * 100);
+  const valid = isValidBidAmount(cents);
+  const { feeCents, totalChargeCents } = feeBreakdown(valid ? cents : 0);
+  const presets = [toLead, toLead + 500, toLead + 2000].filter(
+    isValidBidAmount,
+  );
 
   async function pay() {
-    if (!valid || pending) return
-    setPending(true)
-    setError(null)
+    if (!valid || pending) return;
+    setPending(true);
+    setError(null);
     try {
       const { url } = await startCheckout({
         data: { listingId: Number(listingId), amountCents: cents },
-      })
-      window.location.assign(url)
+      });
+      window.location.assign(url);
     } catch (err) {
       setError(
         err instanceof Error && err.message
           ? err.message
-          : 'Could not open checkout.',
-      )
-      setPending(false)
+          : "Could not open checkout.",
+      );
+      setPending(false);
     }
   }
 
@@ -75,7 +80,7 @@ export function BidPanel({
       <h2 className="text-lg font-bold">Place a bid</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         {isLeader
-          ? 'This website holds #1. Bid again to extend its lead.'
+          ? "This website holds #1. Bid again to extend its lead."
           : `${formatMoney(toLead)} takes this website to #1.`}
       </p>
 
@@ -85,7 +90,7 @@ export function BidPanel({
             key={p}
             type="button"
             size="sm"
-            variant={cents === p ? 'default' : 'outline'}
+            variant={cents === p ? "default" : "outline"}
             onClick={() => setDollars(String(p / 100))}
             className="tabular"
           >
@@ -104,14 +109,14 @@ export function BidPanel({
             id="bid-amount"
             inputMode="decimal"
             value={dollars}
-            onChange={(e) => setDollars(e.target.value.replace(/[^\d.]/g, ''))}
+            onChange={(e) => setDollars(e.target.value.replace(/[^\d.]/g, ""))}
             className="tabular pl-7"
             aria-invalid={!valid}
             aria-describedby="bid-amount-help"
           />
         </div>
         <p id="bid-amount-help" className="text-xs text-muted-foreground">
-          Between {formatMoney(PLATFORM.minBidCents)} and{' '}
+          Between {formatMoney(PLATFORM.minBidCents)} and{" "}
           {formatMoney(PLATFORM.maxBidCents)}.
         </p>
       </div>
@@ -141,7 +146,7 @@ export function BidPanel({
 
       {!open ? (
         <Button className="mt-5 w-full" size="lg" disabled>
-          <Lock /> Bidding opens after approval
+          <Lock /> Bidding is unavailable for this listing
         </Button>
       ) : !paymentsReady ? (
         <Button className="mt-5 w-full" size="lg" disabled>
@@ -160,16 +165,17 @@ export function BidPanel({
           disabled={!valid || pending}
           onClick={pay}
         >
-          <Lock />{' '}
+          <Lock />{" "}
           {pending
-            ? 'Opening secure checkout…'
+            ? "Opening secure checkout…"
             : `Pay ${formatMoney(totalChargeCents)}`}
         </Button>
       )}
       <p className="mt-3 text-xs text-muted-foreground">
-        Card payments are processed by Stripe. Your bid is added only after
-        Stripe confirms the payment to our server.
+        {paymentsReady
+          ? "Stripe Checkout is configured. Your bid is added only after Stripe confirms payment to our server."
+          : "Payments are not configured. Checkout is disabled, and no bid will be counted without server confirmation."}
       </p>
     </div>
-  )
+  );
 }

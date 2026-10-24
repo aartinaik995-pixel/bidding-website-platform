@@ -15,7 +15,10 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as HowItWorksRouteImport } from './routes/how-it-works'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as RefundPolicyRouteImport } from './routes/refund-policy'
 import { Route as SubmitRouteImport } from './routes/submit'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api.stripe-webhook'
 import { Route as CheckoutSuccessRouteImport } from './routes/checkout.success'
 import { Route as SiteSlugRouteImport } from './routes/site.$slug'
@@ -51,9 +54,24 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RefundPolicyRoute = RefundPolicyRouteImport.update({
+  id: '/refund-policy',
+  path: '/refund-policy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SubmitRoute = SubmitRouteImport.update({
   id: '/submit',
   path: '/submit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiStripeWebhookRoute = ApiStripeWebhookRouteImport.update({
@@ -84,7 +102,10 @@ export interface FileRoutesByFullPath {
   '/how-it-works': typeof HowItWorksRoute
   '/leaderboard': typeof LeaderboardRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/refund-policy': typeof RefundPolicyRoute
   '/submit': typeof SubmitRoute
+  '/terms': typeof TermsRoute
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/checkout/success': typeof CheckoutSuccessRoute
   '/site/$slug': typeof SiteSlugRoute
@@ -97,7 +118,10 @@ export interface FileRoutesByTo {
   '/how-it-works': typeof HowItWorksRoute
   '/leaderboard': typeof LeaderboardRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/refund-policy': typeof RefundPolicyRoute
   '/submit': typeof SubmitRoute
+  '/terms': typeof TermsRoute
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/checkout/success': typeof CheckoutSuccessRoute
   '/site/$slug': typeof SiteSlugRoute
@@ -111,7 +135,10 @@ export interface FileRoutesById {
   '/how-it-works': typeof HowItWorksRoute
   '/leaderboard': typeof LeaderboardRoute
   '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/refund-policy': typeof RefundPolicyRoute
   '/submit': typeof SubmitRoute
+  '/terms': typeof TermsRoute
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
   '/checkout/success': typeof CheckoutSuccessRoute
   '/site/$slug': typeof SiteSlugRoute
@@ -126,7 +153,10 @@ export interface FileRouteTypes {
     | '/how-it-works'
     | '/leaderboard'
     | '/login'
+    | '/privacy'
+    | '/refund-policy'
     | '/submit'
+    | '/terms'
     | '/api/stripe-webhook'
     | '/checkout/success'
     | '/site/$slug'
@@ -139,7 +169,10 @@ export interface FileRouteTypes {
     | '/how-it-works'
     | '/leaderboard'
     | '/login'
+    | '/privacy'
+    | '/refund-policy'
     | '/submit'
+    | '/terms'
     | '/api/stripe-webhook'
     | '/checkout/success'
     | '/site/$slug'
@@ -152,7 +185,10 @@ export interface FileRouteTypes {
     | '/how-it-works'
     | '/leaderboard'
     | '/login'
+    | '/privacy'
+    | '/refund-policy'
     | '/submit'
+    | '/terms'
     | '/api/stripe-webhook'
     | '/checkout/success'
     | '/site/$slug'
@@ -166,7 +202,10 @@ export interface RootRouteChildren {
   HowItWorksRoute: typeof HowItWorksRoute
   LeaderboardRoute: typeof LeaderboardRoute
   LoginRoute: typeof LoginRoute
+  PrivacyRoute: typeof PrivacyRoute
+  RefundPolicyRoute: typeof RefundPolicyRoute
   SubmitRoute: typeof SubmitRoute
+  TermsRoute: typeof TermsRoute
   ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
   CheckoutSuccessRoute: typeof CheckoutSuccessRoute
   SiteSlugRoute: typeof SiteSlugRoute
@@ -217,11 +256,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/refund-policy': {
+      id: '/refund-policy'
+      path: '/refund-policy'
+      fullPath: '/refund-policy'
+      preLoaderRoute: typeof RefundPolicyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/submit': {
       id: '/submit'
       path: '/submit'
       fullPath: '/submit'
       preLoaderRoute: typeof SubmitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/stripe-webhook': {
@@ -262,7 +322,10 @@ const rootRouteChildren: RootRouteChildren = {
   HowItWorksRoute: HowItWorksRoute,
   LeaderboardRoute: LeaderboardRoute,
   LoginRoute: LoginRoute,
+  PrivacyRoute: PrivacyRoute,
+  RefundPolicyRoute: RefundPolicyRoute,
   SubmitRoute: SubmitRoute,
+  TermsRoute: TermsRoute,
   ApiStripeWebhookRoute: ApiStripeWebhookRoute,
   CheckoutSuccessRoute: CheckoutSuccessRoute,
   SiteSlugRoute: SiteSlugRoute,
