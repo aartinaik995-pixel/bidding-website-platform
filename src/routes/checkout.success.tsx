@@ -6,9 +6,15 @@ import { captureBidPayment, getBidReceipt, getSessionUser } from '@/lib/account.
 import { formatMoney, feePercentLabel } from '@/lib/platform'
 
 export const Route = createFileRoute('/checkout/success')({
-  validateSearch: (search: Record<string, unknown>) => ({ bid: Number(search.bid) > 0 ? Math.floor(Number(search.bid)) : 0, token: typeof search.token === 'string' ? search.token : '' }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    bid: Number(search.bid) > 0 ? Math.floor(Number(search.bid)) : 0,
+    token: typeof search.token === 'string' ? search.token : '',
+  }),
   loaderDeps: ({ search }) => ({ bid: search.bid, token: search.token }),
-  beforeLoad: async ({ location }) => { const user = await getSessionUser(); if (!user) throw redirect({ to: '/login', search: { redirect: location.href } }) },
+  beforeLoad: async ({ location }) => {
+    const user = await getSessionUser()
+    if (!user) throw redirect({ to: '/login', search: { redirect: location.href } })
+  },
   loader: async ({ deps }) => {
     if (!deps.bid) throw notFound()
     if (deps.token) await captureBidPayment({ data: { bidId: deps.bid, orderId: deps.token } })
@@ -30,7 +36,7 @@ function CheckoutResult() {
   }, [receipt.status, router])
   const view = {
     paid: { icon: <CheckCircle2 className="size-10 text-live" />, title: 'Payment confirmed', body: `PayPal confirmed your payment. ${formatMoney(receipt.amountCents)} has been added to ${receipt.listing.title}'s total.` },
-    pending: { icon: <Hourglass className="size-10 text-primary motion-safe:animate-pulse" />, title: 'Payment verification pending', body: 'PayPal has not yet confirmed this payment. Your bid will not count until server verification succeeds.' },
+    pending: { icon: <Hourglass className="size-10 text-primary motion-safe:animate-pulse" />, title: 'Payment verification pending', body: 'PayPal has not confirmed this payment yet. Your bid will not count until server verification succeeds.' },
     failed: { icon: <XCircle className="size-10 text-destructive" />, title: 'Payment not completed', body: 'The PayPal checkout was not completed. Nothing was added to the leaderboard.' },
     refunded: { icon: <RotateCcw className="size-10 text-muted-foreground" />, title: 'Payment refunded', body: 'This payment was refunded, so it no longer counts toward the ranking.' },
   }[receipt.status]
