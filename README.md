@@ -18,6 +18,7 @@ Set these as **server-side** environment variables in Netlify (never `VITE_*`, n
 | `PAYPAL_CLIENT_ID` | REST app client ID from the PayPal Developer Dashboard for the selected environment |
 | `PAYPAL_CLIENT_SECRET` | Matching REST app secret; keep private and rotate if exposed |
 | `PAYPAL_WEBHOOK_ID` | Webhook ID created in the same PayPal app for the deployed webhook endpoint |
+| `SITE_URL` | **Required.** Public `https://` address of this site, used for PayPal return and cancel links. The request Host header is never used. |
 | `PAYPAL_ENVIRONMENT` | **Required**, no default. `sandbox` for testing; `live` only for production credentials. Production deploys (`CONTEXT=production`) must use `live`, otherwise PayPal checkout stays disabled. |
 
 Register `https://<your-deployed-domain>/api/paypal-webhook` in the same PayPal app with events `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.REFUNDED`, `PAYMENT.CAPTURE.REVERSED`, `CUSTOMER.DISPUTE.CREATED` and `CUSTOMER.DISPUTE.RESOLVED`. Use the webhook ID PayPal assigns for `PAYPAL_WEBHOOK_ID`. The webhook URL must be publicly reachable over HTTPS.

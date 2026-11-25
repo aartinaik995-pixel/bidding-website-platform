@@ -27,7 +27,7 @@ vi.mock('../../db/index.js', async () => {
 const { db } = await import('../../db/index.js')
 const { loadLeaderboardData, loadListingPage } =
   await import('./listings.server')
-const { paymentsConfigured, processPayPalWebhook, reconcileBid } =
+const { paymentsConfigured, processPayPalWebhook, reconcileBid, siteOrigin } =
   await import('./payments.server')
 const { feeBreakdown } = await import('./platform')
 
@@ -137,13 +137,15 @@ function captureCompletedEvent(id = `WH-${++seq}`) {
 function captureRefundedEvent({
   id = `WH-${++seq}`,
   status = 'COMPLETED',
-}: { id?: string; status?: string } = {}) {
+  amount = '11.00',
+}: { id?: string; status?: string; amount?: string } = {}) {
   return {
     id,
     event_type: 'PAYMENT.CAPTURE.REFUNDED',
     resource: {
       id: 'REFUND1',
       status,
+      amount: { currency_code: 'USD', value: amount },
       links: [
         {
           rel: 'up',
@@ -542,6 +544,134 @@ describe('PayPal configuration', () => {
     })
     withEnv({ PAYPAL_ENVIRONMENT: 'sandbox', CONTEXT: 'deploy-preview' }, () => {
       expect(paymentsConfigured()).toBe(true)
+    })
+  })
+})
+
+describe('partial refunds', () => {
+  it('leaves the bid paid when only part of the payment was refunded', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      await processPayPalWebhook(webhookRequest(captureCompletedEvent()))
+      await processPayPalWebhook(webhookRequest(captureRefundedEvent({ amount: '5.00' })))
+      const { listing, bid, ledger } = await state()
+      expect(bid.status).toBe('paid')
+      expect(listing.totalCents).toBe(1000)
+      expect(ledger.map((row) => row.kind)).toEqual(['fee'])
+      expect(error).toHaveBeenCalledWith(expect.stringContaining('partial refund'))
+    } finally {
+      error.mockRestore()
+    }
+  })
+
+  it('refunds the bid when the full charge was refunded', async () => {
+    await processPayPalWebhook(webhookRequest(captureCompletedEvent()))
+    await processPayPalWebhook(webhookRequest(captureRefundedEvent({ amount: '11.00' })))
+    expect((await state()).bid.status).toBe('refunded')
+  })
+
+  it('leaves a disputed bid alone when a buyer-won dispute is only partly refunded', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      await processPayPalWebhook(webhookRequest(captureCompletedEvent()))
+      await processPayPalWebhook(
+        webhookRequest({
+          id: `WH-${++seq}`,
+          event_type: 'CUSTOMER.DISPUTE.CREATED',
+          resource: { disputed_transactions: [{ seller_transaction_id: 'CAP1' }] },
+        }),
+      )
+      await processPayPalWebhook(
+        webhookRequest({
+          id: `WH-${++seq}`,
+          event_type: 'CUSTOMER.DISPUTE.RESOLVED',
+          resource: {
+            disputed_transactions: [{ seller_transaction_id: 'CAP1' }],
+            dispute_outcome: { outcome_code: 'RESOLVED_BUYER_FAVOUR' },
+            dispute_amount: { currency_code: 'USD', value: '5.00' },
+          },
+        }),
+      )
+      expect((await state()).bid.status).toBe('disputed')
+      expect(error).toHaveBeenCalledWith(expect.stringContaining('partial refund'))
+    } finally {
+      error.mockRestore()
+    }
+  })
+})
+
+describe('dispute references', () => {
+  it('logs a warning and changes nothing when a dispute names no capture', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      await processPayPalWebhook(webhookRequest(captureCompletedEvent()))
+      await processPayPalWebhook(
+        webhookRequest({ id: `WH-${++seq}`, event_type: 'CUSTOMER.DISPUTE.CREATED', resource: {} }),
+      )
+      expect((await state()).bid.status).toBe('paid')
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('dispute has no capture reference'))
+    } finally {
+      warn.mockRestore()
+    }
+  })
+
+  it('logs a warning when a dispute names a capture no bid matches', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    try {
+      await processPayPalWebhook(
+        webhookRequest({
+          id: `WH-${++seq}`,
+          event_type: 'CUSTOMER.DISPUTE.CREATED',
+          resource: { disputed_transactions: [{ seller_transaction_id: 'CAP-UNKNOWN' }] },
+        }),
+      )
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('CAP-UNKNOWN'))
+    } finally {
+      warn.mockRestore()
+    }
+  })
+})
+
+describe('SITE_URL for PayPal return links', () => {
+  function withSiteUrl(value: string | undefined, run: () => void) {
+    const saved = process.env.SITE_URL
+    try {
+      if (value === undefined) delete process.env.SITE_URL
+      else process.env.SITE_URL = value
+      run()
+    } finally {
+      if (saved === undefined) delete process.env.SITE_URL
+      else process.env.SITE_URL = saved
+    }
+  }
+
+  it('fails when SITE_URL is not set', () => {
+    withSiteUrl(undefined, () => {
+      expect(() => siteOrigin()).toThrow('SITE_URL is not set')
+    })
+  })
+
+  it('accepts a public https address and returns its origin', () => {
+    withSiteUrl('https://bidmysite.example/some/path', () => {
+      expect(siteOrigin()).toBe('https://bidmysite.example')
+    })
+  })
+
+  it('rejects plain http for public hosts', () => {
+    withSiteUrl('http://bidmysite.example', () => {
+      expect(() => siteOrigin()).toThrow('must use https')
+    })
+  })
+
+  it('allows http only for localhost development', () => {
+    withSiteUrl('http://localhost:8888', () => {
+      expect(siteOrigin()).toBe('http://localhost:8888')
+    })
+  })
+
+  it('rejects values that are not URLs', () => {
+    withSiteUrl('not a url', () => {
+      expect(() => siteOrigin()).toThrow('not a valid URL')
     })
   })
 })

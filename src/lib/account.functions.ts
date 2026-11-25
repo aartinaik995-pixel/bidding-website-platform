@@ -1,7 +1,6 @@
 // Signed-in user data: session, dashboard, PayPal checkout and receipts.
 
 import { createServerFn } from '@tanstack/react-start'
-import { getRequestUrl } from '@tanstack/react-start/server'
 import { and, count, desc, eq, gt } from 'drizzle-orm'
 import { z } from 'zod'
 
@@ -14,6 +13,7 @@ import {
   paymentsConfigured,
   PaymentsNotConfiguredError,
   reconcileBid,
+  siteOrigin,
 } from './payments.server'
 import { toListing } from './listings.server'
 import {
@@ -116,6 +116,8 @@ export const createBidCheckout = createServerFn({ method: 'POST' })
       )
     }
 
+    // Fails before any bid row is created if SITE_URL is missing or invalid.
+    const origin = siteOrigin()
     const { amountCents, feeCents, totalChargeCents } = feeBreakdown(
       data.amountCents,
     )
@@ -133,7 +135,6 @@ export const createBidCheckout = createServerFn({ method: 'POST' })
       .returning({ id: bids.id })
     if (!bid) throw new Error('Could not start checkout.')
 
-    const origin = getRequestUrl().origin
     try {
       const order = await createPayPalOrder({
         bidId: bid.id,

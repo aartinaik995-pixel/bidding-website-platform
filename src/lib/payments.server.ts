@@ -13,12 +13,14 @@ type PayPalAmount = { currency_code?: string; value?: string }
 type PayPalCapture = { id: string; status: string; amount?: PayPalAmount }
 type PayPalRelatedIds = { order_id?: string; capture_id?: string }
 type PayPalDisputeResource = {
+  dispute_amount?: PayPalAmount
   dispute_outcome?: { outcome_code?: string }
   disputed_transactions?: Array<{ seller_transaction_id?: string }>
 }
 type PayPalRefundResource = {
   id?: string
   status?: string
+  amount?: PayPalAmount
   links?: PayPalLink[]
   supplementary_data?: { related_ids?: PayPalRelatedIds }
 }
@@ -111,6 +113,24 @@ async function paypalRequest<T>(path: string, init: RequestInit = {}) {
     throw new Error('PayPal could not complete the payment request.')
   }
   return (await response.json()) as T
+}
+
+/**
+ * Public origin used for PayPal return and cancel links. It must be configured
+ * (SITE_URL); the request Host header is never trusted for payment redirects.
+ */
+export function siteOrigin() {
+  const raw = process.env.SITE_URL
+  if (!raw) throw new Error('SITE_URL is not set. Set it to this site’s public https:// address.')
+  let url: URL
+  try {
+    url = new URL(raw)
+  } catch {
+    throw new Error('SITE_URL is not a valid URL.')
+  }
+  const localDev = url.protocol === 'http:' && url.hostname === 'localhost'
+  if (url.protocol !== 'https:' && !localDev) throw new Error('SITE_URL must use https://.')
+  return url.origin
 }
 
 export async function createPayPalOrder(input: {
@@ -246,14 +266,24 @@ async function applyPaidOrder(tx: Tx, order: PayPalOrder) {
   return 'applied' as const
 }
 
-/** Money returned to the buyer (refund, reversal, or buyer-won dispute). Removes the bid from rankings. */
-export async function applyRefund(tx: Tx, captureId: string) {
+/**
+ * Money returned to the buyer (refund, reversal, or buyer-won dispute).
+ * Only a refund for the full charge removes the bid. `refundedCents` is the amount
+ * PayPal reports; `null` means it was not provided and is treated as a full refund.
+ */
+export async function applyRefund(
+  tx: Tx,
+  captureId: string,
+  refundedCents: number | null,
+): Promise<'refunded' | 'partial' | 'not-found' | 'already-applied'> {
   const [bid] = await tx
     .select()
     .from(bids)
     .where(eq(bids.paypalCaptureId, captureId))
     .for('update')
-  if (!bid || (bid.status !== 'paid' && bid.status !== 'disputed')) return
+  if (!bid) return 'not-found'
+  if (bid.status !== 'paid' && bid.status !== 'disputed') return 'already-applied'
+  if (refundedCents !== null && refundedCents !== bid.totalChargeCents) return 'partial'
   await tx
     .update(bids)
     .set({ status: 'refunded', refundedAt: sql`now()` })
@@ -263,6 +293,7 @@ export async function applyRefund(tx: Tx, captureId: string) {
     .values({ bidId: bid.id, kind: 'refund', grossCents: -bid.amountCents, feeCents: -bid.feeCents })
     .onConflictDoNothing()
   await recomputeListingTotals(tx, bid.listingId)
+  return 'refunded' as const
 }
 
 /** Moves a paid bid to disputed (out of rankings) or a disputed bid back to paid. */
@@ -271,15 +302,17 @@ export async function applyDisputeStatus(
   captureId: string,
   from: 'paid' | 'disputed',
   to: 'paid' | 'disputed',
-) {
+): Promise<'applied' | 'not-found' | 'no-change'> {
   const [bid] = await tx
     .select()
     .from(bids)
     .where(eq(bids.paypalCaptureId, captureId))
     .for('update')
-  if (!bid || bid.status !== from) return
+  if (!bid) return 'not-found'
+  if (bid.status !== from) return 'no-change'
   await tx.update(bids).set({ status: to }).where(eq(bids.id, bid.id))
   await recomputeListingTotals(tx, bid.listingId)
+  return 'applied' as const
 }
 
 export async function reconcileBid(bidId: number) {
@@ -292,7 +325,8 @@ export async function reconcileBid(bidId: number) {
   }
 }
 
-export async function refundCapture(captureId: string, bidId: number) {
+/** Full admin refund of a captured payment. Partial refunds are not offered in the admin UI. */
+export async function refundCapture(captureId: string, bidId: number, totalChargeCents: number) {
   const result = await paypalRequest<{ status?: string }>(
     `/v2/payments/captures/${encodeURIComponent(captureId)}/refund`,
     {
@@ -302,7 +336,7 @@ export async function refundCapture(captureId: string, bidId: number) {
     },
   )
   if (result.status === 'COMPLETED') {
-    await db.transaction((tx) => applyRefund(tx, captureId))
+    await db.transaction((tx) => applyRefund(tx, captureId, totalChargeCents))
     return 'refunded' as const
   }
   if (result.status === 'PENDING') return 'processing' as const
@@ -351,10 +385,12 @@ export async function processPayPalWebhook(request: Request) {
 
   // Retrieve provider data before opening the database transaction; network
   // failures must leave no event marker so PayPal can retry processing safely.
+  const eventId = event.id
   let completedOrder: PayPalOrder | undefined
-  let refundedCaptureId: string | null = null
-  // Each entry: a capture and the status change it causes.
-  let disputeChanges: Array<{ captureId: string; action: 'pause' | 'refund' | 'restore' }> = []
+  const refunds: Array<{ captureId: string; cents: number | null }> = []
+  const disputeChanges: Array<{ captureId: string; action: 'pause' | 'restore' }> = []
+  const refundCents = (amount?: PayPalAmount) => dollarsToCents(amount?.value) ?? null
+
   if (event.event_type === 'PAYMENT.CAPTURE.COMPLETED') {
     const orderId = event.resource?.supplementary_data?.related_ids?.order_id
     if (!orderId) throw new PayPalWebhookVerificationError('PayPal event has no order ID.')
@@ -362,47 +398,61 @@ export async function processPayPalWebhook(request: Request) {
   } else if (event.event_type === 'PAYMENT.CAPTURE.REFUNDED') {
     // Only a completed refund changes rankings; PENDING refunds wait for the final event.
     if (event.resource?.status === 'COMPLETED') {
-      refundedCaptureId = captureIdFromRefund(event.resource)
+      const captureId = captureIdFromRefund(event.resource)
+      if (captureId) refunds.push({ captureId, cents: refundCents(event.resource.amount) })
+      else console.warn(`PayPal event ${eventId}: refund has no capture reference.`)
     }
   } else if (event.event_type === 'PAYMENT.CAPTURE.REVERSED') {
-    // A reversal (chargeback) returns the money: treat it like a refund. The resource is the capture.
-    if (event.resource?.id) refundedCaptureId = event.resource.id
-  } else if (event.event_type === 'CUSTOMER.DISPUTE.CREATED') {
-    // Open dispute: pull the bid out of rankings until PayPal resolves it.
-    disputeChanges = captureIdsFromDispute(event.resource).map((captureId) => ({ captureId, action: 'pause' as const }))
-  } else if (event.event_type === 'CUSTOMER.DISPUTE.RESOLVED') {
-    const outcome = event.resource?.dispute_outcome?.outcome_code ?? ''
+    // A reversal (chargeback) returns the money. The resource is the capture itself.
+    if (event.resource?.id) refunds.push({ captureId: event.resource.id, cents: refundCents(event.resource.amount) })
+  } else if (event.event_type === 'CUSTOMER.DISPUTE.CREATED' || event.event_type === 'CUSTOMER.DISPUTE.RESOLVED') {
     const captureIds = captureIdsFromDispute(event.resource)
-    if (REFUND_OUTCOMES.has(outcome)) {
-      disputeChanges = captureIds.map((captureId) => ({ captureId, action: 'refund' as const }))
-    } else if (RESTORE_OUTCOMES.has(outcome)) {
-      disputeChanges = captureIds.map((captureId) => ({ captureId, action: 'restore' as const }))
+    if (captureIds.length === 0) {
+      console.warn(`PayPal event ${eventId}: dispute has no capture reference; no bid was changed.`)
+    }
+    if (event.event_type === 'CUSTOMER.DISPUTE.CREATED') {
+      // Open dispute: pull the bid out of rankings until PayPal resolves it.
+      for (const captureId of captureIds) disputeChanges.push({ captureId, action: 'pause' })
     } else {
-      // Unknown outcome: keep the bid paused and let an admin review it.
-      console.error('PayPal dispute resolved with unrecognized outcome', outcome)
+      const outcome = event.resource?.dispute_outcome?.outcome_code ?? ''
+      if (REFUND_OUTCOMES.has(outcome)) {
+        // Buyer won: the disputed amount goes back to the buyer.
+        for (const captureId of captureIds) refunds.push({ captureId, cents: refundCents(event.resource?.dispute_amount) })
+      } else if (RESTORE_OUTCOMES.has(outcome)) {
+        for (const captureId of captureIds) disputeChanges.push({ captureId, action: 'restore' })
+      } else {
+        // Unknown outcome: keep the bid paused and let an admin review it.
+        console.error(`PayPal event ${eventId}: dispute resolved with unrecognized outcome "${outcome}"; bid left paused.`)
+      }
     }
   }
 
   await db.transaction(async (tx) => {
     const inserted = await tx
       .insert(paypalEvents)
-      .values({ id: event.id!, type: event.event_type! })
+      .values({ id: eventId, type: event.event_type! })
       .onConflictDoNothing()
       .returning({ id: paypalEvents.id })
     if (!inserted.length) return
 
-    if (completedOrder) {
-      await applyPaidOrder(tx, completedOrder)
-    } else if (refundedCaptureId) {
-      await applyRefund(tx, refundedCaptureId)
+    if (completedOrder) await applyPaidOrder(tx, completedOrder)
+
+    for (const refund of refunds) {
+      const outcome = await applyRefund(tx, refund.captureId, refund.cents)
+      if (outcome === 'partial') {
+        console.error(`PayPal event ${eventId}: partial refund on capture ${refund.captureId}; bid left unchanged for admin review.`)
+      } else if (outcome === 'not-found') {
+        console.warn(`PayPal event ${eventId}: no bid matches capture ${refund.captureId}.`)
+      }
     }
+
     for (const change of disputeChanges) {
-      if (change.action === 'pause') {
-        await applyDisputeStatus(tx, change.captureId, 'paid', 'disputed')
-      } else if (change.action === 'restore') {
-        await applyDisputeStatus(tx, change.captureId, 'disputed', 'paid')
-      } else {
-        await applyRefund(tx, change.captureId)
+      const outcome =
+        change.action === 'pause'
+          ? await applyDisputeStatus(tx, change.captureId, 'paid', 'disputed')
+          : await applyDisputeStatus(tx, change.captureId, 'disputed', 'paid')
+      if (outcome === 'not-found') {
+        console.warn(`PayPal event ${eventId}: no bid matches disputed capture ${change.captureId}.`)
       }
     }
   })

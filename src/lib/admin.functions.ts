@@ -69,5 +69,5 @@ export const refundBid = createServerFn({ method: 'POST' })
     await requireAdmin()
     const [bid] = await db.select().from(bids).where(eq(bids.id, data.bidId))
     if (!bid || bid.status !== 'paid' || !bid.paypalCaptureId) throw new Error('Only paid PayPal bids can be refunded.')
-    return { status: await refundCapture(bid.paypalCaptureId, bid.id) }
+    return { status: await refundCapture(bid.paypalCaptureId, bid.id, bid.totalChargeCents) }
   })
