@@ -80,8 +80,8 @@ export const bids = pgTable(
     currency: text().notNull().default("usd"),
     /** pending | paid | failed | refunded */
     status: text().notNull().default("pending"),
-    stripeSessionId: text("stripe_session_id"),
-    stripePaymentIntentId: text("stripe_payment_intent_id"),
+    paypalOrderId: text("paypal_order_id"),
+    paypalCaptureId: text("paypal_capture_id"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -89,8 +89,8 @@ export const bids = pgTable(
     refundedAt: timestamp("refunded_at", { withTimezone: true }),
   },
   (t) => [
-    uniqueIndex("bids_stripe_session_idx").on(t.stripeSessionId),
-    index("bids_payment_intent_idx").on(t.stripePaymentIntentId),
+    uniqueIndex("bids_paypal_order_idx").on(t.paypalOrderId),
+    index("bids_paypal_capture_idx").on(t.paypalCaptureId),
     index("bids_listing_status_idx").on(t.listingId, t.status),
     index("bids_bidder_idx").on(t.bidderId),
     check(
@@ -128,8 +128,8 @@ export const platformLedger = pgTable(
   ],
 );
 
-/** Stripe event IDs already processed, so webhook retries are idempotent. */
-export const stripeEvents = pgTable("stripe_events", {
+/** PayPal webhook event IDs already processed, so webhook retries are idempotent. */
+export const paypalEvents = pgTable("paypal_events", {
   id: text().primaryKey(),
   type: text().notNull(),
   processedAt: timestamp("processed_at", { withTimezone: true })
