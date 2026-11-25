@@ -1,196 +1,262 @@
-// Server-only Stripe integration. A bid becomes "paid" only here, and only
-// from data Stripe itself returned: a signature-verified webhook event or a
-// session fetched from the Stripe API with the secret key.
+// Server-only PayPal REST integration. A bid is published only after PayPal's
+// Orders API confirms a completed capture and its amount/order metadata match.
 
-import Stripe from 'stripe'
 import { and, eq, sql } from 'drizzle-orm'
 
 import { db } from '../../db/index.js'
-import {
-  bids,
-  listings,
-  platformLedger,
-  stripeEvents,
-} from '../../db/schema.js'
+import { bids, listings, paypalEvents, platformLedger } from '../../db/schema.js'
 import { PLATFORM } from './platform'
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
+type PayPalObject = Record<string, any>
 
 export class PaymentsNotConfiguredError extends Error {
   constructor() {
-    super('Payments are not configured yet.')
+    super('PayPal checkout is not configured. Please try again later.')
   }
 }
 
-let client: Stripe | null = null
+export function paypalEnvironment() {
+  const value = process.env.PAYPAL_ENVIRONMENT ?? 'sandbox'
+  if (value !== 'sandbox' && value !== 'live') {
+    throw new Error('PAYPAL_ENVIRONMENT must be sandbox or live.')
+  }
+  return value
+}
 
-/** Returns a Stripe client, or null when STRIPE_SECRET_KEY is not set. */
-export function getStripe(): Stripe | null {
-  const key = process.env.STRIPE_SECRET_KEY
-  if (!key) return null
-  client ??= new Stripe(key, { maxNetworkRetries: 2, timeout: 20_000 })
-  return client
+function paypalBaseUrl() {
+  return paypalEnvironment() === 'live'
+    ? 'https://api-m.paypal.com'
+    : 'https://api-m.sandbox.paypal.com'
 }
 
 export function paymentsConfigured() {
   return Boolean(
-    process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET,
+    process.env.PAYPAL_CLIENT_ID?.trim() &&
+      process.env.PAYPAL_CLIENT_SECRET?.trim() &&
+      (process.env.PAYPAL_ENVIRONMENT === 'sandbox' ||
+        process.env.PAYPAL_ENVIRONMENT === 'live'),
   )
 }
 
-/** Recompute a listing's ranking totals from its paid bids. */
+async function accessToken() {
+  const clientId = process.env.PAYPAL_CLIENT_ID
+  const clientSecret = process.env.PAYPAL_CLIENT_SECRET
+  if (!clientId || !clientSecret) throw new PaymentsNotConfiguredError()
+  const response = await fetch(`${paypalBaseUrl()}/v1/oauth2/token`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: 'grant_type=client_credentials',
+  })
+  if (!response.ok) throw new Error('PayPal authentication failed.')
+  const data = (await response.json()) as { access_token?: string }
+  if (!data.access_token) throw new Error('PayPal returned no access token.')
+  return data.access_token
+}
+
+async function paypalRequest<T extends PayPalObject>(
+  path: string,
+  init: RequestInit = {},
+  requestId?: string,
+): Promise<T> {
+  const token = await accessToken()
+  const headers = new Headers(init.headers)
+  headers.set('Authorization', `Bearer ${token}`)
+  headers.set('Content-Type', 'application/json')
+  headers.set('Accept', 'application/json')
+  if (requestId) headers.set('PayPal-Request-Id', requestId)
+  const response = await fetch(`${paypalBaseUrl()}${path}`, { ...init, headers })
+  if (!response.ok) {
+    const detail = await response.text()
+    console.error('PayPal API request failed', response.status, detail.slice(0, 500))
+    throw new Error('PayPal could not complete the payment request.')
+  }
+  return (await response.json()) as T
+}
+
+export function money(cents: number) {
+  return (cents / 100).toFixed(2)
+}
+
+export async function createPayPalOrder({
+  bidId,
+  listingId,
+  title,
+  amountCents,
+  feeCents,
+  totalChargeCents,
+  currency,
+  returnUrl,
+  cancelUrl,
+}: {
+  bidId: number
+  listingId: number
+  title: string
+  amountCents: number
+  feeCents: number
+  totalChargeCents: number
+  currency: string
+  returnUrl: string
+  cancelUrl: string
+}) {
+  const order = await paypalRequest<PayPalObject>(
+    '/v2/checkout/orders',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        intent: 'CAPTURE',
+        purchase_units: [
+          {
+            reference_id: String(bidId),
+            custom_id: String(bidId),
+            description: `Bid on ${title}`.slice(0, 127),
+            amount: {
+              currency_code: currency.toUpperCase(),
+              value: money(totalChargeCents),
+              breakdown: {
+                item_total: { currency_code: currency.toUpperCase(), value: money(amountCents) },
+                handling: { currency_code: currency.toUpperCase(), value: money(feeCents) },
+              },
+            },
+            items: [
+              { name: `Bid on ${title}`.slice(0, 127), quantity: '1', unit_amount: { currency_code: currency.toUpperCase(), value: money(amountCents) }, category: 'DIGITAL_GOODS' },
+              { name: 'BidMySite platform fee', quantity: '1', unit_amount: { currency_code: currency.toUpperCase(), value: money(feeCents) }, category: 'DIGITAL_GOODS' },
+            ],
+          },
+        ],
+        application_context: {
+          brand_name: PLATFORM.name,
+          user_action: 'PAY_NOW',
+          return_url: returnUrl,
+          cancel_url: cancelUrl,
+        },
+      }),
+    },
+    `bidmysite-order-${bidId}`,
+  )
+  const approvalUrl = order.links?.find((link: PayPalObject) => link.rel === 'approve')?.href
+  if (order.status !== 'CREATED' || typeof order.id !== 'string' || !approvalUrl) {
+    throw new Error('PayPal did not return a valid approval link.')
+  }
+  return { id: order.id, approvalUrl }
+}
+
+function captureForBid(order: PayPalObject, bid: typeof bids.$inferSelect) {
+  if (order.status !== 'COMPLETED' || !Array.isArray(order.purchase_units)) return null
+  const unit = order.purchase_units.find(
+    (item: PayPalObject) => item.custom_id === String(bid.id) && item.reference_id === String(bid.id),
+  )
+  if (!unit || unit.amount?.currency_code?.toLowerCase() !== bid.currency ||
+      unit.amount?.value !== money(bid.totalChargeCents)) return null
+  const capture = unit.payments?.captures?.find(
+    (item: PayPalObject) => item.status === 'COMPLETED' &&
+      item.amount?.currency_code?.toLowerCase() === bid.currency &&
+      item.amount?.value === money(bid.totalChargeCents),
+  )
+  return typeof capture?.id === 'string' ? capture.id : null
+}
+
 async function recomputeListingTotals(tx: Tx, listingId: number) {
-  await tx
-    .update(listings)
-    .set({
-      totalCents: sql`coalesce((select sum(${bids.amountCents}) from ${bids} where ${bids.listingId} = ${listingId} and ${bids.status} = 'paid'), 0)`,
-      highestBidCents: sql`coalesce((select max(${bids.amountCents}) from ${bids} where ${bids.listingId} = ${listingId} and ${bids.status} = 'paid'), 0)`,
-      bidCount: sql`(select count(*) from ${bids} where ${bids.listingId} = ${listingId} and ${bids.status} = 'paid')`,
-      lastBidAt: sql`(select max(${bids.paidAt}) from ${bids} where ${bids.listingId} = ${listingId} and ${bids.status} = 'paid')`,
-    })
-    .where(eq(listings.id, listingId))
+  await tx.update(listings).set({
+    totalCents: sql`coalesce((select sum(${bids.amountCents}) from ${bids} where ${bids.listingId} = ${listingId} and ${bids.status} = 'paid'), 0)`,
+    highestBidCents: sql`coalesce((select max(${bids.amountCents}) from ${bids} where ${bids.listingId} = ${listingId} and ${bids.status} = 'paid'), 0)`,
+    bidCount: sql`(select count(*) from ${bids} where ${bids.listingId} = ${listingId} and ${bids.status} = 'paid')`,
+    lastBidAt: sql`(select max(${bids.paidAt}) from ${bids} where ${bids.listingId} = ${listingId} and ${bids.status} = 'paid')`,
+  }).where(eq(listings.id, listingId))
 }
 
-function paymentIntentId(value: string | { id: string } | null | undefined) {
-  if (!value) return null
-  return typeof value === 'string' ? value : value.id
-}
-
-/**
- * Marks the bid behind a Stripe Checkout Session as paid, writes the fee
- * ledger row and updates the listing totals. Safe to call more than once.
- */
-export async function applyPaidSession(
-  tx: Tx,
-  session: Stripe.Checkout.Session,
-) {
-  if (session.payment_status !== 'paid') return 'not-paid' as const
-  const bidId = Number(session.metadata?.bidId ?? session.client_reference_id)
+/** Applies a completed order read from PayPal, idempotently and transactionally. */
+export async function applyCompletedOrder(tx: Tx, order: PayPalObject) {
+  const [bidId] = order.purchase_units?.map((unit: PayPalObject) => Number(unit.custom_id)) ?? []
   if (!Number.isInteger(bidId)) return 'unknown-bid' as const
-
-  const [bid] = await tx
-    .select()
-    .from(bids)
-    .where(and(eq(bids.id, bidId), eq(bids.stripeSessionId, session.id)))
+  const [bid] = await tx.select().from(bids)
+    .where(and(eq(bids.id, bidId), eq(bids.paypalOrderId, order.id)))
     .for('update')
   if (!bid) return 'unknown-bid' as const
-  if (bid.status === 'paid' || bid.status === 'refunded')
-    return 'already-applied' as const
-
-  // The charged amount must match what the server priced; never trust anything else.
-  if (
-    session.amount_total !== bid.totalChargeCents ||
-    session.currency?.toLowerCase() !== bid.currency
-  ) {
-    console.error(
-      `Stripe session ${session.id} amount mismatch for bid ${bid.id}`,
-    )
-    return 'amount-mismatch' as const
-  }
-
-  await tx
-    .update(bids)
-    .set({
-      status: 'paid',
-      paidAt: sql`now()`,
-      stripePaymentIntentId: paymentIntentId(session.payment_intent),
-    })
-    .where(eq(bids.id, bid.id))
-  await tx
-    .insert(platformLedger)
-    .values({
-      bidId: bid.id,
-      kind: 'fee',
-      grossCents: bid.amountCents,
-      feeCents: bid.feeCents,
-    })
-    .onConflictDoNothing()
+  if (bid.status === 'paid' || bid.status === 'refunded') return 'already-applied' as const
+  const captureId = captureForBid(order, bid)
+  if (!captureId) return 'unverified' as const
+  await tx.update(bids).set({ status: 'paid', paidAt: sql`now()`, paypalCaptureId: captureId }).where(eq(bids.id, bid.id))
+  await tx.insert(platformLedger).values({ bidId: bid.id, kind: 'fee', grossCents: bid.amountCents, feeCents: bid.feeCents }).onConflictDoNothing()
   await recomputeListingTotals(tx, bid.listingId)
   return 'applied' as const
 }
 
-/** Marks a still-pending bid as failed (expired or failed checkout). */
-export async function applyFailedSession(
-  tx: Tx,
-  session: Stripe.Checkout.Session,
-) {
-  await tx
-    .update(bids)
-    .set({ status: 'failed' })
-    .where(
-      and(eq(bids.stripeSessionId, session.id), eq(bids.status, 'pending')),
-    )
+export async function capturePayPalOrder(bidId: number, orderId: string) {
+  const [bid] = await db.select().from(bids).where(eq(bids.id, bidId))
+  if (!bid || bid.paypalOrderId !== orderId) throw new Error('Payment order does not match this bid.')
+  if (bid.status === 'paid') return
+  if (bid.status !== 'pending') throw new Error('This bid is no longer payable.')
+  let order = await paypalRequest<PayPalObject>(`/v2/checkout/orders/${encodeURIComponent(orderId)}`)
+  if (order.status === 'APPROVED') {
+    order = await paypalRequest<PayPalObject>(`/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, { method: 'POST', body: '{}' }, `bidmysite-capture-${bid.id}`)
+  }
+  const result = await db.transaction((tx) => applyCompletedOrder(tx, order))
+  if (result !== 'applied' && result !== 'already-applied') {
+    throw new Error('PayPal has not confirmed the expected completed payment.')
+  }
 }
 
-/** Removes a fully refunded bid from the rankings and records the refund in the ledger. */
-export async function applyRefund(tx: Tx, paymentIntent: string) {
-  const [bid] = await tx
-    .select()
-    .from(bids)
-    .where(eq(bids.stripePaymentIntentId, paymentIntent))
-    .for('update')
+export async function reconcileBid(bidId: number) {
+  const [bid] = await db.select().from(bids).where(eq(bids.id, bidId))
+  if (!bid || bid.status !== 'pending' || !bid.paypalOrderId) return
+  const order = await paypalRequest<PayPalObject>(`/v2/checkout/orders/${encodeURIComponent(bid.paypalOrderId)}`)
+  if (order.status === 'COMPLETED') await db.transaction((tx) => applyCompletedOrder(tx, order))
+}
+
+export async function applyRefund(tx: Tx, captureId: string) {
+  const [bid] = await tx.select().from(bids).where(eq(bids.paypalCaptureId, captureId)).for('update')
   if (!bid || bid.status !== 'paid') return
-  await tx
-    .update(bids)
-    .set({ status: 'refunded', refundedAt: sql`now()` })
-    .where(eq(bids.id, bid.id))
-  await tx
-    .insert(platformLedger)
-    .values({
-      bidId: bid.id,
-      kind: 'refund',
-      grossCents: -bid.amountCents,
-      feeCents: -bid.feeCents,
-    })
-    .onConflictDoNothing()
+  await tx.update(bids).set({ status: 'refunded', refundedAt: sql`now()` }).where(eq(bids.id, bid.id))
+  await tx.insert(platformLedger).values({ bidId: bid.id, kind: 'refund', grossCents: -bid.amountCents, feeCents: -bid.feeCents }).onConflictDoNothing()
   await recomputeListingTotals(tx, bid.listingId)
 }
 
-/** Handles a signature-verified Stripe event exactly once. */
-export async function processStripeEvent(event: Stripe.Event) {
-  await db.transaction(async (tx) => {
-    const inserted = await tx
-      .insert(stripeEvents)
-      .values({ id: event.id, type: event.type })
-      .onConflictDoNothing()
-      .returning({ id: stripeEvents.id })
-    if (inserted.length === 0) return // Already processed (Stripe retry).
+/** Verify webhook authenticity by asking PayPal to validate its transmission headers. */
+export async function verifyPayPalWebhook(request: Request, event: PayPalObject) {
+  const webhookId = process.env.PAYPAL_WEBHOOK_ID
+  if (!webhookId) throw new PaymentsNotConfiguredError()
+  const requiredHeaders = [
+    'paypal-auth-algo', 'paypal-cert-url', 'paypal-transmission-id',
+    'paypal-transmission-sig', 'paypal-transmission-time',
+  ]
+  const transmission = Object.fromEntries(requiredHeaders.map((name) => [name, request.headers.get(name)]))
+  if (Object.values(transmission).some((value) => !value)) return false
+  const result = await paypalRequest<PayPalObject>('/v1/notifications/verify-webhook-signature', {
+    method: 'POST',
+    body: JSON.stringify({
+      auth_algo: transmission['paypal-auth-algo'],
+      cert_url: transmission['paypal-cert-url'],
+      transmission_id: transmission['paypal-transmission-id'],
+      transmission_sig: transmission['paypal-transmission-sig'],
+      transmission_time: transmission['paypal-transmission-time'],
+      webhook_id: webhookId,
+      webhook_event: event,
+    }),
+  })
+  return result.verification_status === 'SUCCESS'
+}
 
-    switch (event.type) {
-      case 'checkout.session.completed':
-      case 'checkout.session.async_payment_succeeded':
-        await applyPaidSession(tx, event.data.object)
-        break
-      case 'checkout.session.expired':
-      case 'checkout.session.async_payment_failed':
-        await applyFailedSession(tx, event.data.object)
-        break
-      case 'charge.refunded': {
-        const charge = event.data.object
-        const intent = paymentIntentId(charge.payment_intent)
-        if (charge.refunded && intent) await applyRefund(tx, intent)
-        break
+export async function processPayPalEvent(event: PayPalObject) {
+  if (typeof event.id !== 'string' || typeof event.event_type !== 'string') throw new Error('Invalid PayPal event.')
+  await db.transaction(async (tx) => {
+    const inserted = await tx.insert(paypalEvents).values({ id: event.id, type: event.event_type }).onConflictDoNothing().returning({ id: paypalEvents.id })
+    if (!inserted.length) return
+    const resource = event.resource as PayPalObject | undefined
+    if (event.event_type === 'PAYMENT.CAPTURE.COMPLETED' && resource?.id) {
+      const orderId = resource.supplementary_data?.related_ids?.order_id
+      if (typeof orderId === 'string') {
+        const order = await paypalRequest<PayPalObject>(`/v2/checkout/orders/${encodeURIComponent(orderId)}`)
+        await applyCompletedOrder(tx, order)
       }
+    } else if (event.event_type === 'PAYMENT.CAPTURE.REFUNDED' && typeof resource?.id === 'string') {
+      await applyRefund(tx, resource.id)
     }
   })
 }
 
-/**
- * Fallback for when the webhook is slow: asks Stripe directly for the
- * session's status. Uses the secret key, so the answer is authoritative.
- */
-export async function reconcileBid(bidId: number) {
-  const stripe = getStripe()
-  if (!stripe) return
-  const [bid] = await db.select().from(bids).where(eq(bids.id, bidId))
-  if (!bid || bid.status !== 'pending' || !bid.stripeSessionId) return
-  const session = await stripe.checkout.sessions.retrieve(bid.stripeSessionId)
-  if (session.payment_status === 'paid') {
-    await db.transaction((tx) => applyPaidSession(tx, session))
-  } else if (session.status === 'expired') {
-    await db.transaction((tx) => applyFailedSession(tx, session))
-  }
-}
-
-export const CHECKOUT_TTL_SECONDS = 30 * 60
 export const CURRENCY = PLATFORM.currency.toLowerCase()
+export const CHECKOUT_TTL_SECONDS = 30 * 60
