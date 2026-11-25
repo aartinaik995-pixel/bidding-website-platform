@@ -542,8 +542,29 @@ describe('PayPal configuration', () => {
     withEnv({ PAYPAL_ENVIRONMENT: 'live', CONTEXT: 'production' }, () => {
       expect(paymentsConfigured()).toBe(true)
     })
+  })
+
+  it('allows sandbox on previews and branch deploys', () => {
     withEnv({ PAYPAL_ENVIRONMENT: 'sandbox', CONTEXT: 'deploy-preview' }, () => {
       expect(paymentsConfigured()).toBe(true)
+    })
+    withEnv({ PAYPAL_ENVIRONMENT: 'sandbox', CONTEXT: 'branch-deploy' }, () => {
+      expect(paymentsConfigured()).toBe(true)
+    })
+    withEnv({ PAYPAL_ENVIRONMENT: 'sandbox', CONTEXT: undefined }, () => {
+      expect(paymentsConfigured()).toBe(true)
+    })
+  })
+
+  it('never uses live credentials outside the production deploy', () => {
+    withEnv({ PAYPAL_ENVIRONMENT: 'live', CONTEXT: 'deploy-preview' }, () => {
+      expect(paymentsConfigured()).toBe(false)
+    })
+    withEnv({ PAYPAL_ENVIRONMENT: 'live', CONTEXT: 'branch-deploy' }, () => {
+      expect(paymentsConfigured()).toBe(false)
+    })
+    withEnv({ PAYPAL_ENVIRONMENT: 'live', CONTEXT: undefined }, () => {
+      expect(paymentsConfigured()).toBe(false)
     })
   })
 })

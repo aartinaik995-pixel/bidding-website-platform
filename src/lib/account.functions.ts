@@ -117,7 +117,16 @@ export const createBidCheckout = createServerFn({ method: 'POST' })
     }
 
     // Fails before any bid row is created if SITE_URL is missing or invalid.
-    const origin = siteOrigin()
+    let origin: string
+    try {
+      origin = siteOrigin()
+    } catch (error) {
+      console.error(
+        'Checkout unavailable: SITE_URL check failed',
+        error instanceof Error ? error.message : 'unknown error',
+      )
+      throw new Error('Secure checkout is not available right now. Nothing was charged.')
+    }
     const { amountCents, feeCents, totalChargeCents } = feeBreakdown(
       data.amountCents,
     )

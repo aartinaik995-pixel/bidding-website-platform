@@ -61,8 +61,14 @@ function credentials() {
     console.error('PayPal disabled: PAYPAL_ENVIRONMENT must be "sandbox" or "live".')
     return null
   }
-  if (process.env.CONTEXT === 'production' && environment !== 'live') {
+  // Live money moves only on the production deploy. Previews and branch deploys are sandbox only.
+  const isProduction = process.env.CONTEXT === 'production'
+  if (isProduction && environment !== 'live') {
     console.error('PayPal disabled: production deploys require PAYPAL_ENVIRONMENT=live.')
+    return null
+  }
+  if (!isProduction && environment === 'live') {
+    console.error('PayPal disabled: PAYPAL_ENVIRONMENT=live is only allowed on the production deploy.')
     return null
   }
   return {
