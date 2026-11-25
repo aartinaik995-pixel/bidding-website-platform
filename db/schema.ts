@@ -1,6 +1,16 @@
-import { check, index, integer, pgTable, serial, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core'
+import {
+  check,
+  index,
+  integer,
+  pgTable,
+  serial,
+  text,
+  timestamp,
+  uniqueIndex,
+} from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
+/** Mirrors Netlify Identity users so listings and bids can reference them. */
 export const users = pgTable('users', {
   id: text().primaryKey(),
   email: text().notNull(),
@@ -9,6 +19,7 @@ export const users = pgTable('users', {
   lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
+/** Listings are live on submission; admins can remove or restore them. */
 export const listings = pgTable('listings', {
   id: serial().primaryKey(),
   slug: text().notNull(),
@@ -32,6 +43,7 @@ export const listings = pgTable('listings', {
   check('listings_status_check', sql`${t.status} in ('pending', 'approved', 'removed')`),
 ])
 
+/** Only PayPal-verified paid bids count toward the leaderboard. */
 export const bids = pgTable('bids', {
   id: serial().primaryKey(),
   listingId: integer('listing_id').notNull().references(() => listings.id),
@@ -56,6 +68,7 @@ export const bids = pgTable('bids', {
   check('bids_amount_check', sql`${t.amountCents} > 0 and ${t.feeCents} >= 0`),
 ])
 
+/** Fee and refund accounting ledger. */
 export const platformLedger = pgTable('platform_ledger', {
   id: serial().primaryKey(),
   bidId: integer('bid_id').notNull().references(() => bids.id),
@@ -68,12 +81,14 @@ export const platformLedger = pgTable('platform_ledger', {
   check('platform_ledger_kind_check', sql`${t.kind} in ('fee', 'refund')`),
 ])
 
+/** PayPal webhook event IDs make provider retries idempotent. */
 export const paypalEvents = pgTable('paypal_events', {
   id: text().primaryKey(),
   type: text().notNull(),
   processedAt: timestamp('processed_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
+/** Persistent per-user request windows for abuse protection. */
 export const userRateLimits = pgTable('user_rate_limits', {
   userId: text('user_id').notNull().references(() => users.id),
   action: text().notNull(),

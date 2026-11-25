@@ -1,4 +1,4 @@
-// Signed-in user data: session, dashboard, PayPal order creation and receipts.
+// Authenticated user data, PayPal checkout creation, capture and receipts.
 import { createServerFn } from '@tanstack/react-start'
 import { getRequestUrl } from '@tanstack/react-start/server'
 import { and, count, desc, eq, gt } from 'drizzle-orm'
@@ -8,15 +8,24 @@ import { db } from '../../db/index.js'
 import { bids, listings } from '../../db/schema.js'
 import { currentUser, displayName, requireUser } from './auth.server'
 import { enforceUserRateLimit } from './rate-limit.server'
-import { CHECKOUT_TTL_SECONDS, CURRENCY, capturePayPalOrder, createPayPalOrder, paymentsConfigured, PaymentsNotConfiguredError, reconcileBid } from './payments.server'
+import {
+  capturePayPalOrder,
+  CHECKOUT_TTL_SECONDS,
+  CURRENCY,
+  createPayPalOrder,
+  PaymentsNotConfiguredError,
+  paymentsConfigured,
+  reconcileBid,
+} from './payments.server'
 import { toListing } from './listings.server'
-import { feeBreakdown, feePercentLabel, isValidBidAmount, type BidStatus } from './platform'
+import { feeBreakdown, isValidBidAmount, type BidStatus } from './platform'
 
 export const getSessionUser = createServerFn({ method: 'GET' }).handler(async () => {
   const user = await currentUser()
   return user ? { id: user.id, email: user.email, name: user.name, isAdmin: user.isAdmin } : null
 })
 
+/** Public readiness signal only; credentials are never returned. */
 export const getPaymentsReady = createServerFn({ method: 'GET' }).handler(async () => paymentsConfigured())
 
 export const getDashboard = createServerFn({ method: 'GET' }).handler(async () => {
@@ -25,7 +34,9 @@ export const getDashboard = createServerFn({ method: 'GET' }).handler(async () =
     db.select().from(listings).where(eq(listings.ownerId, user.id)).orderBy(desc(listings.createdAt)),
     db.select({ bid: bids, listing: listings }).from(bids).innerJoin(listings, eq(bids.listingId, listings.id)).where(eq(bids.bidderId, user.id)).orderBy(desc(bids.createdAt)).limit(200),
   ])
-  const ranked = await db.select({ id: listings.id }).from(listings).where(and(eq(listings.status, 'approved'), gt(listings.totalCents, 0))).orderBy(desc(listings.totalCents), listings.lastBidAt)
+  const ranked = await db.select({ id: listings.id }).from(listings)
+    .where(and(eq(listings.status, 'approved'), gt(listings.totalCents, 0)))
+    .orderBy(desc(listings.totalCents), listings.lastBidAt)
   const rankById = new Map(ranked.map((row, i) => [row.id, i + 1]))
   return {
     user: { name: user.name, email: user.email, isAdmin: user.isAdmin },
@@ -42,21 +53,38 @@ export const getDashboard = createServerFn({ method: 'GET' }).handler(async () =
 
 const MAX_OPEN_CHECKOUTS = 5
 export const createBidCheckout = createServerFn({ method: 'POST' })
-  .validator(z.object({ listingId: z.coerce.number().int().positive(), amountCents: z.number().int().refine(isValidBidAmount, 'Bid amount is outside the allowed range') }))
+  .validator(z.object({
+    listingId: z.coerce.number().int().positive(),
+    amountCents: z.number().int().refine(isValidBidAmount, 'Bid amount is outside the allowed range'),
+  }))
   .handler(async ({ data }) => {
     if (!paymentsConfigured()) throw new PaymentsNotConfiguredError()
     const user = await requireUser()
     const [listing] = await db.select().from(listings).where(eq(listings.id, data.listingId))
     if (!listing || listing.status !== 'approved') throw new Error('This website is not open for bids.')
     await enforceUserRateLimit({ userId: user.id, action: 'checkout-creation', limit: 5, windowMs: CHECKOUT_TTL_SECONDS * 1000 })
-    const [open] = await db.select({ n: count() }).from(bids).where(and(eq(bids.bidderId, user.id), eq(bids.status, 'pending'), gt(bids.createdAt, new Date(Date.now() - CHECKOUT_TTL_SECONDS * 1000))))
-    if ((open?.n ?? 0) >= MAX_OPEN_CHECKOUTS) throw new Error('You have several unfinished checkouts. Complete or cancel them, then try again in 30 minutes.')
+    const [open] = await db.select({ n: count() }).from(bids).where(and(
+      eq(bids.bidderId, user.id), eq(bids.status, 'pending'),
+      gt(bids.createdAt, new Date(Date.now() - CHECKOUT_TTL_SECONDS * 1000)),
+    ))
+    if ((open?.n ?? 0) >= MAX_OPEN_CHECKOUTS) {
+      throw new Error('You have several unfinished checkouts. Complete or cancel them, then try again in 30 minutes.')
+    }
+
     const { amountCents, feeCents, totalChargeCents } = feeBreakdown(data.amountCents)
-    const [bid] = await db.insert(bids).values({ listingId: listing.id, bidderId: user.id, bidderName: displayName(user), amountCents, feeCents, totalChargeCents, currency: CURRENCY }).returning({ id: bids.id })
+    const [bid] = await db.insert(bids).values({
+      listingId: listing.id, bidderId: user.id, bidderName: displayName(user),
+      amountCents, feeCents, totalChargeCents, currency: CURRENCY,
+    }).returning({ id: bids.id })
     if (!bid) throw new Error('Could not start checkout.')
     try {
       const origin = getRequestUrl().origin
-      const order = await createPayPalOrder({ bidId: bid.id, listingId: listing.id, title: listing.title, amountCents, feeCents, totalChargeCents, currency: CURRENCY, returnUrl: `${origin}/checkout/success?bid=${bid.id}`, cancelUrl: `${origin}/site/${encodeURIComponent(listing.slug)}?checkout=cancelled` })
+      const order = await createPayPalOrder({
+        bidId: bid.id, title: listing.title, amountCents, feeCents, totalChargeCents,
+        currency: CURRENCY,
+        returnUrl: `${origin}/checkout/success?bid=${bid.id}`,
+        cancelUrl: `${origin}/site/${encodeURIComponent(listing.slug)}?checkout=cancelled`,
+      })
       await db.update(bids).set({ paypalOrderId: order.id }).where(eq(bids.id, bid.id))
       return { url: order.approvalUrl }
     } catch (error) {
@@ -66,22 +94,23 @@ export const createBidCheckout = createServerFn({ method: 'POST' })
     }
   })
 
+/** User-triggered capture still verifies the order directly with PayPal server-side. */
 export const captureBidPayment = createServerFn({ method: 'POST' })
   .validator(z.object({ bidId: z.coerce.number().int().positive(), orderId: z.string().min(1).max(128) }))
   .handler(async ({ data }) => {
     const user = await requireUser()
     const [bid] = await db.select().from(bids).where(eq(bids.id, data.bidId))
-    if (!bid || (bid.bidderId !== user.id && !user.isAdmin)) throw new Error('Bid not found.')
+    if (!bid || bid.bidderId !== user.id) throw new Error('Bid not found.')
     await capturePayPalOrder(bid.id, data.orderId)
     return { ok: true }
   })
 
-/** Bid receipt is based on persisted provider verification, never URL parameters alone. */
 export const getBidReceipt = createServerFn({ method: 'GET' })
   .validator(z.object({ bidId: z.coerce.number().int().positive() }))
   .handler(async ({ data }) => {
     const user = await requireUser()
-    const load = () => db.select({ bid: bids, listing: listings }).from(bids).innerJoin(listings, eq(bids.listingId, listings.id)).where(eq(bids.id, data.bidId))
+    const load = () => db.select({ bid: bids, listing: listings }).from(bids)
+      .innerJoin(listings, eq(bids.listingId, listings.id)).where(eq(bids.id, data.bidId))
     let [row] = await load()
     if (!row || (row.bid.bidderId !== user.id && !user.isAdmin)) return null
     if (row.bid.status === 'pending') {
@@ -97,5 +126,3 @@ export const getBidReceipt = createServerFn({ method: 'GET' })
       listing: { slug: row.listing.slug, title: row.listing.title, totalCents: row.listing.totalCents },
     }
   })
-
-export { feePercentLabel }

@@ -1,25 +1,26 @@
 # BidMySite
 
-BidMySite is a public website leaderboard. Listings are published on submission; only bids verified as completed by PayPal are included in ranking totals.
+BidMySite is a public website leaderboard. Users submit websites and place paid bids; only server-verified PayPal captures count toward rankings. The 10% platform fee is calculated server-side and added to the bid total.
 
-## Payments
+## Product and accounts
 
-Checkout uses PayPal Orders v2 with server-created orders and server-side capture. The return URL is not trusted as proof: the server retrieves/captures the PayPal order and validates its completed status, bid reference, amount, and currency before changing bid or leaderboard totals. PayPal webhook transmissions are verified using PayPal's webhook signature verification API and processed idempotently.
+- Public homepage and leaderboard, listing pages and history, submissions, user dashboard, admin management, and policy routes.
+- Netlify Identity account sign-up, login and recovery; protected account dashboard.
+- New listings publish immediately. Moderators can remove or restore listings; submissions do not wait for admin approval.
+- Netlify Database stores listings, bids, and revenue ledger. Database-backed rate limits protect submission and checkout creation.
 
-Set these Netlify environment variables for the site and deploy contexts:
+## PayPal payments
 
-| Variable | Value |
-| --- | --- |
-| `PAYPAL_CLIENT_ID` | PayPal REST app client ID (Sandbox or Live) |
-| `PAYPAL_CLIENT_SECRET` | Matching REST app secret; store only in Netlify |
-| `PAYPAL_ENVIRONMENT` | `sandbox` for testing, `live` for production |
-| `PAYPAL_WEBHOOK_ID` | Webhook ID from the same PayPal app used for the API credentials |
+- Server creates PayPal Orders v2 using bid metadata and totals derived from persisted server records.
+- PayPal return is not proof of payment. The app captures/retrieves the order server-side and verifies completed order, bid ID, captured amount and currency before recording payment and updating leaderboard totals.
+- Webhook authenticity is checked against PayPal using the configured webhook ID; event handling is idempotent. Refunds only affect ranking after PayPal confirms completion.
+- Admins retain listing moderation, payment history, full PayPal refunds and revenue export.
 
-Register `https://YOUR_PRODUCTION_DOMAIN/api/paypal-webhook` in the matching PayPal environment and subscribe to `PAYMENT.CAPTURE.COMPLETED` and `PAYMENT.CAPTURE.REFUNDED`. `PAYPAL_WEBHOOK_ID` is required for server verification, in addition to the three requested variables. Use Sandbox buyer and seller accounts for test transactions; switch credentials and webhook registration together for production. Configure Netlify Identity and Netlify Database as before and allow the deployed migration to run before enabling checkout.
+Configure Netlify variables `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_ENVIRONMENT` (`sandbox` or `live`), and `PAYPAL_WEBHOOK_ID`. Register `https://YOUR_DOMAIN/api/paypal-webhook` in the matching PayPal app for `PAYMENT.CAPTURE.COMPLETED` and `PAYMENT.CAPTURE.REFUNDED`.
 
-No PayPal credentials are committed. A production payment cannot be tested from source control alone; validate Sandbox checkout, verified webhook delivery, duplicate webhook retries, refunds, and leaderboard removal before switching to Live.
+No PayPal credentials are stored in source control. Configure the Netlify Database and Identity as well. The migration is applied by the deployment pipeline; verify it in a preview/deployment before checkout is enabled.
 
-## Development
+## Local checks
 
 ```sh
 pnpm install

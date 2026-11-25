@@ -1,23 +1,23 @@
 # BidMySite roadmap
 
-BidMySite is a public website leaderboard. Users submit websites and place paid bids; only server-verified PayPal captures count toward rankings. The 10% platform fee is calculated server-side and added to the bid total.
+BidMySite is a public website leaderboard. Users submit websites and place paid bids; only server-verified PayPal captures count toward rankings. The platform applies a transparent 10% fee.
 
-## Product and accounts
+## Product
 
-- Homepage, live leaderboard, listing detail/history, submission, account dashboard, and policy routes.
-- Netlify Identity account sign-up, login, and recovery; protected account dashboard.
-- Listings publish immediately when submitted. Admins may remove or restore listings for moderation; there is no approval queue.
-- Database-backed listings, bids, and ledger. Rate limits protect listing and checkout creation.
+- Public homepage, leaderboard, website detail/history, submission, account dashboard, and admin management.
+- Netlify Identity sign-in and protected account functions.
+- New listings publish immediately. Admins retain moderation controls to remove and restore listings; no routine approval queue is used.
+- Database-backed listing and bid persistence, transaction ledger, and server-side rate limits.
 
-## PayPal payments
+## PayPal
 
-- The server creates PayPal Orders v2 with bid ID, amount and currency derived from database records and platform rules.
-- The return page asks the server to capture/retrieve the order. The order and completed capture must match its persisted bid ID, total and currency before a transaction marks the bid paid, records revenue and recomputes leaderboard totals.
-- PayPal webhook transmissions are verified using `PAYPAL_WEBHOOK_ID` with PayPal's verification API. Events are idempotent; completed capture events trigger a fresh PayPal order lookup, and refunds remove bids from rankings only after PayPal reports completion.
-- Admins retain listing moderation, bid/payment review, full PayPal refunds and revenue exports.
+- Server creates PayPal Orders v2. Bid ID, amount, fee, and currency are derived on the server.
+- On PayPal return, server-side capture/retrieval verifies completed state, expected bid reference, total capture amount, and currency before marking the bid paid and recomputing leaderboard totals.
+- PayPal webhook signatures are checked through PayPal using `PAYPAL_WEBHOOK_ID`; events are persisted for retry idempotency. Refunds are reflected only after PayPal confirmation.
+- Admins manage listings, payments, refunds, and revenue reports.
 
-## Configuration and launch checks
+## Required deployment configuration
 
-Configure `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_ENVIRONMENT` (`sandbox` or `live`) and `PAYPAL_WEBHOOK_ID` in the relevant Netlify deploy context. Register `https://YOUR_DOMAIN/api/paypal-webhook` in the matching PayPal app and subscribe to `PAYMENT.CAPTURE.COMPLETED` and `PAYMENT.CAPTURE.REFUNDED`. Ensure Netlify Identity and Database are active and deploy the migration before checkout testing.
+Set `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, `PAYPAL_ENVIRONMENT=sandbox|live`, and `PAYPAL_WEBHOOK_ID` in Netlify. Register `https://YOUR_DOMAIN/api/paypal-webhook` in the corresponding PayPal environment for completed capture and refunded capture events. Provision Netlify Database and Identity and confirm migrations have run.
 
-No production deployment or real payment was performed from this code task. Verify Sandbox order creation/capture, mismatched and unsigned event rejection, webhook retries, refund behavior, and live leaderboard updates before switching to production credentials.
+No live deployment or actual Sandbox/Live payment was performed by this repository change. Test Sandbox order creation/capture, negative amount/currency/ID verification, webhook signature and retry behavior, refund processing, and leaderboard refresh before production use.
