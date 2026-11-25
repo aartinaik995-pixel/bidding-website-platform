@@ -66,7 +66,6 @@ function AdminPage() {
   }
 
   const { revenue, listings, bids, daily, monthly, paymentsReady } = data
-  const pendingCount = listings.filter((l) => l.status === 'pending').length
 
   return (
     <div className="mx-auto max-w-content px-4 py-12 sm:px-6">
@@ -80,7 +79,7 @@ function AdminPage() {
           </h1>
           <p className="mt-3 max-w-xl text-muted-foreground">
             Moderate listings, review payments and track platform fee revenue.
-            All figures come from Stripe-verified payments.
+            All figures come from PayPal-verified payments.
           </p>
         </div>
         <Button asChild variant="outline">
@@ -95,8 +94,8 @@ function AdminPage() {
           <AlertTriangle />
           <AlertTitle>Payments are not connected</AlertTitle>
           <AlertDescription>
-            Checkout stays disabled until the Stripe secret key and webhook
-            signing secret are set as environment variables for this project.
+            Checkout stays disabled until the PayPal client ID, client secret,
+            webhook ID and environment are set as server-side variables for this project.
           </AlertDescription>
         </Alert>
       )}
@@ -121,7 +120,7 @@ function AdminPage() {
       <Tabs defaultValue="moderation" className="mt-8">
         <TabsList className="flex-wrap">
           <TabsTrigger value="moderation">
-            Listings{pendingCount > 0 && ` (${pendingCount} to review)`}
+            Listings
           </TabsTrigger>
           <TabsTrigger value="bids">Bids</TabsTrigger>
           <TabsTrigger value="revenue">Revenue</TabsTrigger>
@@ -283,18 +282,18 @@ function ModerationActions({
   const update = useServerFn(setListingStatus)
   const [pending, setPending] = useState(false)
 
-  async function set(next: ListingStatus) {
+  async function set(next: 'approved' | 'removed') {
     setPending(true)
     try {
       await update({ data: { listingId: Number(id), status: next } })
       toast.success(
         next === 'approved'
-          ? 'Listing approved. Bidding is open.'
+          ? 'Listing restored. Bidding is open.'
           : next === 'removed'
             ? hasPaidBids
               ? 'Listing removed. Refund its paid bids from the Bids tab.'
               : 'Listing removed.'
-            : 'Listing moved back to review.',
+            : 'Listing updated.',
       )
       await router.invalidate()
     } catch {
@@ -308,7 +307,7 @@ function ModerationActions({
     <div className="flex justify-end gap-2">
       {status !== 'approved' && (
         <Button size="sm" disabled={pending} onClick={() => set('approved')}>
-          Approve
+          Restore
         </Button>
       )}
       {status !== 'removed' && (
@@ -342,7 +341,7 @@ function RefundButton({
   async function run() {
     if (
       !window.confirm(
-        'Refund this bid in full through Stripe? It will be removed from the rankings.',
+        'Refund this bid in full through PayPal? It will be removed from the rankings.',
       )
     )
       return
@@ -352,7 +351,7 @@ function RefundButton({
       toast.success(
         result.status === 'refunded'
           ? 'Refunded. The bid no longer counts toward rankings.'
-          : 'Refund submitted. The bid is removed once Stripe confirms it.',
+          : 'Refund submitted. The bid is removed once PayPal confirms it.',
       )
       await router.invalidate()
     } catch (error) {

@@ -28,7 +28,7 @@ const faqs = [
   },
   {
     q: 'When does my bid count?',
-    a: 'Only after Stripe confirms the payment directly to our server. Abandoned, failed or refunded payments never change the rankings.',
+    a: 'Only after PayPal confirms the payment directly to our server. Abandoned, failed or refunded payments never change the rankings.',
   },
   {
     q: 'What does the platform fee cover?',
@@ -40,7 +40,7 @@ const faqs = [
   },
   {
     q: 'What websites are allowed?',
-    a: 'Listings are reviewed. Illegal content, malware, adult content and impersonation are removed, and bids on removed listings are refunded.',
+    a: 'Listings go live for bidding immediately. Illegal content, malware, adult content and impersonation are removed by moderators, and bids on removed listings are refunded.',
   },
   {
     q: 'Are bids refundable?',

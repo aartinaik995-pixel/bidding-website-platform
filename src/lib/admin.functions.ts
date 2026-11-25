@@ -54,7 +54,8 @@ async function revenueBy(unit: 'day' | 'month') {
 }
 
 export const setListingStatus = createServerFn({ method: 'POST' })
-  .validator(z.object({ listingId: z.coerce.number().int().positive(), status: z.enum(['approved', 'removed', 'pending']) }))
+  // Listings are open for bidding on submission; admins can only remove or restore them.
+  .validator(z.object({ listingId: z.coerce.number().int().positive(), status: z.enum(['approved', 'removed']) }))
   .handler(async ({ data }) => {
     await requireAdmin()
     const [row] = await db.update(listings).set({ status: data.status, reviewedAt: sql`now()` }).where(eq(listings.id, data.listingId)).returning({ id: listings.id })

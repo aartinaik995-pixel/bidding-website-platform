@@ -1,12 +1,12 @@
 // @vitest-environment node
-// Runs the real migration on an in-memory Postgres (PGlite) and checks that
-// only verified, correctly priced Stripe payments change rankings and revenue.
+// Runs the real migrations on an in-memory Postgres (PGlite) and checks that
+// only server-verified, correctly priced PayPal payments change rankings and revenue.
+// PayPal's HTTP API is replaced with a fake so tests never reach the network.
 
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import Stripe from 'stripe'
 import { eq } from 'drizzle-orm'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import * as schema from '../../db/schema'
 
@@ -27,36 +27,130 @@ vi.mock('../../db/index.js', async () => {
 const { db } = await import('../../db/index.js')
 const { loadLeaderboardData, loadListingPage } =
   await import('./listings.server')
-const { processStripeEvent } = await import('./payments.server')
+const { processPayPalWebhook, reconcileBid } = await import('./payments.server')
 const { feeBreakdown } = await import('./platform')
+
+type PayPalOrderFixture = ReturnType<typeof paypalOrder>
+
+const paypal = {
+  order: null as PayPalOrderFixture | null,
+  captured: null as PayPalOrderFixture | null,
+  verification: 'SUCCESS',
+}
 
 let listingId = 0
 let bidId = 0
 let seq = 0
 
-function sessionEvent(
-  type: string,
-  overrides: Partial<Stripe.Checkout.Session> = {},
-  eventId = `evt_${++seq}`,
-) {
+function paypalOrder({
+  status = 'COMPLETED',
+  orderValue = '11.00',
+  orderCurrency = 'USD',
+  captureValue = '11.00',
+  captureStatus = 'COMPLETED',
+  captureCurrency = 'USD',
+}: {
+  status?: string
+  orderValue?: string
+  orderCurrency?: string
+  captureValue?: string
+  captureStatus?: string
+  captureCurrency?: string
+} = {}) {
   return {
-    id: eventId,
-    type,
-    data: {
-      object: {
-        id: 'cs_test_1',
-        object: 'checkout.session',
-        payment_status: 'paid',
-        status: 'complete',
-        amount_total: 1100,
-        currency: 'usd',
-        client_reference_id: String(bidId),
-        metadata: { bidId: String(bidId) },
-        payment_intent: 'pi_test_1',
-        ...overrides,
+    id: 'ORDER1',
+    status,
+    purchase_units: [
+      {
+        reference_id: String(bidId),
+        custom_id: String(bidId),
+        amount: { currency_code: orderCurrency, value: orderValue },
+        payments: {
+          captures: [
+            {
+              id: 'CAP1',
+              status: captureStatus,
+              amount: { currency_code: captureCurrency, value: captureValue },
+            },
+          ],
+        },
       },
+    ],
+  }
+}
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
+/** Stands in for PayPal's REST API (token, order fetch/capture, webhook verification). */
+const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+  const url = String(input)
+  const method = init?.method ?? 'GET'
+  if (url.endsWith('/v1/oauth2/token')) return json({ access_token: 'test-token' })
+  if (url.endsWith('/v1/notifications/verify-webhook-signature')) {
+    return json({ verification_status: paypal.verification })
+  }
+  if (url.endsWith('/capture') && method === 'POST') {
+    return json(paypal.captured ?? paypal.order)
+  }
+  if (url.includes('/v2/checkout/orders/') && method === 'GET') {
+    return json(paypal.order)
+  }
+  return json({ error: 'unexpected request' }, 500)
+})
+
+function webhookRequest(event: unknown, { signed = true } = {}) {
+  const headers: Record<string, string> = { 'content-type': 'application/json' }
+  if (signed) {
+    Object.assign(headers, {
+      'paypal-auth-algo': 'SHA256withRSA',
+      'paypal-cert-url': 'https://api.sandbox.paypal.com/cert.pem',
+      'paypal-transmission-id': `t-${++seq}`,
+      'paypal-transmission-sig': 'signature',
+      'paypal-transmission-time': '2026-11-25T00:00:00Z',
+    })
+  }
+  return new Request('http://localhost/api/paypal-webhook', {
+    method: 'POST',
+    body: JSON.stringify(event),
+    headers,
+  })
+}
+
+function captureCompletedEvent(id = `WH-${++seq}`) {
+  return {
+    id,
+    event_type: 'PAYMENT.CAPTURE.COMPLETED',
+    resource: {
+      id: 'CAP1',
+      status: 'COMPLETED',
+      supplementary_data: { related_ids: { order_id: 'ORDER1' } },
     },
-  } as unknown as Stripe.Event
+  }
+}
+
+function captureRefundedEvent({
+  id = `WH-${++seq}`,
+  status = 'COMPLETED',
+}: { id?: string; status?: string } = {}) {
+  return {
+    id,
+    event_type: 'PAYMENT.CAPTURE.REFUNDED',
+    resource: {
+      id: 'REFUND1',
+      status,
+      links: [
+        {
+          rel: 'up',
+          href: 'https://api.sandbox.paypal.com/v2/payments/captures/CAP1',
+        },
+      ],
+    },
+  }
 }
 
 async function state() {
@@ -64,17 +158,25 @@ async function state() {
     .select()
     .from(schema.listings)
     .where(eq(schema.listings.id, listingId))
-  const [bid] = await db
-    .select()
-    .from(schema.bids)
-    .where(eq(schema.bids.id, bidId))
+  const [bid] = await db.select().from(schema.bids).where(eq(schema.bids.id, bidId))
   const ledger = await db.select().from(schema.platformLedger)
   return { listing: listing!, bid: bid!, ledger }
 }
 
+beforeAll(() => {
+  process.env.PAYPAL_CLIENT_ID = 'client-test'
+  process.env.PAYPAL_CLIENT_SECRET = 'secret-test'
+  process.env.PAYPAL_WEBHOOK_ID = 'webhook-test'
+  process.env.PAYPAL_ENVIRONMENT = 'sandbox'
+})
+
 beforeEach(async () => {
+  vi.stubGlobal('fetch', fetchMock)
+  paypal.verification = 'SUCCESS'
+  paypal.captured = null
+
   await db.delete(schema.platformLedger)
-  await db.delete(schema.stripeEvents)
+  await db.delete(schema.paypalEvents)
   await db.delete(schema.bids)
   await db.delete(schema.listings)
   await db.delete(schema.users)
@@ -91,7 +193,6 @@ beforeEach(async () => {
       ownerId: 'u1',
       ownerName: 'Owner',
       contactEmail: 'owner@example.com',
-      status: 'approved',
     })
     .returning()
   listingId = listing!.id
@@ -105,10 +206,15 @@ beforeEach(async () => {
       amountCents,
       feeCents,
       totalChargeCents,
-      stripeSessionId: 'cs_test_1',
+      paypalOrderId: 'ORDER1',
     })
     .returning()
   bidId = bid!.id
+  paypal.order = paypalOrder()
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
 })
 
 describe('platform fee', () => {
@@ -131,40 +237,45 @@ describe('platform fee', () => {
   })
 })
 
-describe('Stripe webhook processing', () => {
-  it('counts a verified payment once, even when Stripe retries', async () => {
-    const event = sessionEvent('checkout.session.completed')
-    await processStripeEvent(event)
-    await processStripeEvent(event)
-    await processStripeEvent(sessionEvent('checkout.session.completed'))
+describe('PayPal webhook processing', () => {
+  it('counts a verified capture once, even when PayPal retries', async () => {
+    await processPayPalWebhook(webhookRequest(captureCompletedEvent('WH-A')))
+    await processPayPalWebhook(webhookRequest(captureCompletedEvent('WH-A')))
+    await processPayPalWebhook(webhookRequest(captureCompletedEvent('WH-B')))
 
     const { listing, bid, ledger } = await state()
     expect(bid.status).toBe('paid')
-    expect(bid.stripePaymentIntentId).toBe('pi_test_1')
+    expect(bid.paypalCaptureId).toBe('CAP1')
     expect(listing.totalCents).toBe(1000)
     expect(listing.highestBidCents).toBe(1000)
     expect(listing.bidCount).toBe(1)
     expect(ledger).toHaveLength(1)
-    expect(ledger[0]).toMatchObject({
-      kind: 'fee',
-      grossCents: 1000,
-      feeCents: 100,
-    })
+    expect(ledger[0]).toMatchObject({ kind: 'fee', grossCents: 1000, feeCents: 100 })
   })
 
-  it('ignores sessions that are unpaid or charged a different amount', async () => {
-    await processStripeEvent(
-      sessionEvent('checkout.session.completed', { payment_status: 'unpaid' }),
-    )
-    await processStripeEvent(
-      sessionEvent('checkout.session.completed', { amount_total: 110 }),
-    )
-    await processStripeEvent(
-      sessionEvent('checkout.session.completed', { currency: 'eur' }),
-    )
-    await processStripeEvent(
-      sessionEvent('checkout.session.completed', { id: 'cs_other' }),
-    )
+  it('accepts amounts with cents exactly (no floating-point rounding errors)', async () => {
+    const { amountCents, feeCents, totalChargeCents } = feeBreakdown(1100)
+    await db
+      .update(schema.bids)
+      .set({ amountCents, feeCents, totalChargeCents })
+      .where(eq(schema.bids.id, bidId))
+    paypal.order = paypalOrder({ orderValue: '12.10', captureValue: '12.10' })
+
+    await processPayPalWebhook(webhookRequest(captureCompletedEvent()))
+    expect((await state()).bid.status).toBe('paid')
+  })
+
+  it('ignores unfinished, mismatched or wrong-currency orders', async () => {
+    paypal.order = paypalOrder({ status: 'APPROVED' })
+    await processPayPalWebhook(webhookRequest(captureCompletedEvent()))
+    expect((await state()).bid.status).toBe('pending')
+
+    paypal.order = paypalOrder({ orderValue: '10.00', captureValue: '10.00' })
+    await processPayPalWebhook(webhookRequest(captureCompletedEvent()))
+    expect((await state()).bid.status).toBe('pending')
+
+    paypal.order = paypalOrder({ captureCurrency: 'EUR' })
+    await processPayPalWebhook(webhookRequest(captureCompletedEvent()))
 
     const { listing, bid, ledger } = await state()
     expect(bid.status).toBe('pending')
@@ -172,136 +283,129 @@ describe('Stripe webhook processing', () => {
     expect(ledger).toHaveLength(0)
   })
 
-  it('marks expired checkouts as failed without touching rankings', async () => {
-    await processStripeEvent(
-      sessionEvent('checkout.session.expired', {
-        payment_status: 'unpaid',
-        status: 'expired',
-      }),
-    )
-    const { listing, bid } = await state()
-    expect(bid.status).toBe('failed')
-    expect(listing.totalCents).toBe(0)
+  it('rejects unsigned and failed-verification events without changing anything', async () => {
+    await expect(
+      processPayPalWebhook(webhookRequest(captureCompletedEvent(), { signed: false })),
+    ).rejects.toThrow('missing signature headers')
+
+    paypal.verification = 'FAILURE'
+    await expect(
+      processPayPalWebhook(webhookRequest(captureCompletedEvent())),
+    ).rejects.toThrow('signature verification failed')
+
+    const { bid, ledger } = await state()
+    expect(bid.status).toBe('pending')
+    expect(ledger).toHaveLength(0)
   })
 
-  it('removes a refunded bid from rankings and records the refund', async () => {
-    await processStripeEvent(sessionEvent('checkout.session.completed'))
-    await processStripeEvent({
-      id: `evt_${++seq}`,
-      type: 'charge.refunded',
-      data: {
-        object: {
-          id: 'ch_1',
-          object: 'charge',
-          refunded: true,
-          payment_intent: 'pi_test_1',
-        },
-      },
-    } as unknown as Stripe.Event)
+  it('records a completed refund and removes the bid from rankings', async () => {
+    await processPayPalWebhook(webhookRequest(captureCompletedEvent()))
+    await processPayPalWebhook(webhookRequest(captureRefundedEvent()))
 
     const { listing, bid, ledger } = await state()
     expect(bid.status).toBe('refunded')
     expect(listing.totalCents).toBe(0)
     expect(listing.bidCount).toBe(0)
-    expect(
-      ledger.map((row) => [row.kind, row.grossCents, row.feeCents]),
-    ).toEqual([
+    expect(ledger.map((row) => [row.kind, row.grossCents, row.feeCents])).toEqual([
       ['fee', 1000, 100],
       ['refund', -1000, -100],
     ])
+  })
+
+  it('waits for a completed refund before changing rankings', async () => {
+    await processPayPalWebhook(webhookRequest(captureCompletedEvent()))
+    await processPayPalWebhook(webhookRequest(captureRefundedEvent({ status: 'PENDING' })))
+
+    expect((await state()).bid.status).toBe('paid')
+  })
+})
+
+describe('bid reconciliation', () => {
+  it('captures an approved PayPal order and counts it once', async () => {
+    paypal.order = paypalOrder({ status: 'APPROVED' })
+    paypal.captured = paypalOrder()
+
+    await reconcileBid(bidId)
+    const { listing, bid } = await state()
+    expect(bid.status).toBe('paid')
+    expect(listing.totalCents).toBe(1000)
+    expect(
+      fetchMock.mock.calls.some(([url]) => String(url).endsWith('/capture')),
+    ).toBe(true)
   })
 })
 
 describe('public rankings', () => {
   it('only ranks listings with verified payments', async () => {
     expect((await loadLeaderboardData()).leaderboard).toHaveLength(0)
-    const before = await loadListingPage('example', null)
-    expect(before?.listing.rank).toBe(0)
+    expect((await loadListingPage('example', null))?.listing.rank).toBe(0)
 
-    await processStripeEvent(sessionEvent('checkout.session.completed'))
+    await processPayPalWebhook(webhookRequest(captureCompletedEvent()))
     const board = await loadLeaderboardData()
     expect(
-      board.leaderboard.map(
-        (l: { slug: string; rank: number; totalCents: number }) => [
-          l.slug,
-          l.rank,
-          l.totalCents,
-        ],
-      ),
+      board.leaderboard.map((l: { slug: string; rank: number; totalCents: number }) => [
+        l.slug,
+        l.rank,
+        l.totalCents,
+      ]),
     ).toEqual([['example', 1, 1000]])
-    expect(board.stats).toEqual({
-      listingCount: 1,
-      bidCount: 1,
-      totalBidCents: 1000,
-    })
+    expect(board.stats).toEqual({ listingCount: 1, bidCount: 1, totalBidCents: 1000 })
     expect(board.recentBids).toHaveLength(1)
 
     const page = await loadListingPage('example', null)
     expect(page?.listing.rank).toBe(1)
-    expect(
-      page?.bids.map((b: { amountCents: number }) => b.amountCents),
-    ).toEqual([1000])
+    expect(page?.bids.map((b: { amountCents: number }) => b.amountCents)).toEqual([1000])
   })
 
-  it('hides pending listings from the public', async () => {
-    await db.update(schema.listings).set({ status: 'pending' })
+  it('opens new listings for bidding immediately, with no approval step', async () => {
+    const [created] = await db
+      .insert(schema.listings)
+      .values({
+        slug: 'brand-new',
+        url: 'https://new.example.com/',
+        title: 'Brand new',
+        description: 'Submitted just now',
+        ownerId: 'u1',
+        ownerName: 'Owner',
+        contactEmail: 'owner@example.com',
+      })
+      .returning()
+    expect(created!.status).toBe('approved')
+    expect(await loadListingPage('brand-new', null)).not.toBeNull()
+  })
+
+  it('hides removed listings from the public', async () => {
+    await db.update(schema.listings).set({ status: 'removed' })
     expect(await loadListingPage('example', null)).toBeNull()
-    const owner = {
-      id: 'u1',
-      email: 'owner@example.com',
-      name: 'Owner',
-      isAdmin: false,
-    }
+    const owner = { id: 'u1', email: 'owner@example.com', name: 'Owner', isAdmin: false }
     expect((await loadListingPage('example', owner))?.isOwner).toBe(true)
   })
 })
 
-describe('webhook endpoint', () => {
-  const secret = 'whsec_test_secret'
-  process.env.STRIPE_SECRET_KEY = 'sk_test_dummy'
-  process.env.STRIPE_WEBHOOK_SECRET = secret
-
-  async function post(body: string, signature?: string) {
-    const { Route } = await import('../routes/api.stripe-webhook')
+describe('PayPal webhook endpoint', () => {
+  async function post(event: unknown, { signed = true } = {}) {
+    const { Route } = await import('../routes/api.paypal-webhook')
     const handlers = (
       Route.options as unknown as {
         server: {
-          handlers: Record<
-            string,
-            (ctx: { request: Request }) => Promise<Response>
-          >
+          handlers: Record<string, (ctx: { request: Request }) => Promise<Response>>
         }
       }
     ).server.handlers
-    return handlers.POST!({
-      request: new Request('http://localhost/api/stripe-webhook', {
-        method: 'POST',
-        body,
-        headers: signature ? { 'stripe-signature': signature } : {},
-      }),
-    })
+    return handlers.POST!({ request: webhookRequest(event, { signed }) })
   }
 
-  it('rejects unsigned and forged events', async () => {
-    const body = JSON.stringify(sessionEvent('checkout.session.completed'))
-    expect((await post(body)).status).toBe(400)
-    expect((await post(body, 't=1,v1=forged')).status).toBe(400)
-    const forged = Stripe.webhooks.generateTestHeaderString({
-      payload: body,
-      secret: 'whsec_wrong',
-    })
-    expect((await post(body, forged)).status).toBe(400)
+  it('rejects unsigned and unverified events with 400', async () => {
+    expect((await post(captureCompletedEvent(), { signed: false })).status).toBe(400)
+    paypal.verification = 'FAILURE'
+    expect((await post(captureCompletedEvent())).status).toBe(400)
     expect((await state()).bid.status).toBe('pending')
   })
 
-  it('accepts a correctly signed event and applies it', async () => {
-    const body = JSON.stringify(sessionEvent('checkout.session.completed'))
-    const signature = Stripe.webhooks.generateTestHeaderString({
-      payload: body,
-      secret,
-    })
-    const response = await post(body, signature)
-    expect(response.status).toBe(200)
+  it('accepts a verified event, applies it, and acknowledges retries', async () => {
+    const event = captureCompletedEvent('WH-ENDPOINT')
+    expect((await post(event)).status).toBe(200)
+    expect((await post(event)).status).toBe(200)
     expect((await state()).bid.status).toBe('paid')
   })
 })

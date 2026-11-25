@@ -18,8 +18,8 @@ import {
 
 /**
  * Bid amount picker with a transparent fee breakdown. "Pay" sends only the
- * bid amount to the server, which prices the charge and opens Stripe
- * Checkout. The bid counts only after Stripe confirms the payment.
+ * bid amount to the server, which prices the charge and opens PayPal
+ * Checkout. The bid counts only after the server verifies the PayPal payment.
  */
 export function BidPanel({
   listingId,
@@ -141,7 +141,7 @@ export function BidPanel({
 
       {!open ? (
         <Button className="mt-5 w-full" size="lg" disabled>
-          <Lock /> Bidding opens after approval
+          <Lock /> Bidding is closed
         </Button>
       ) : !paymentsReady ? (
         <Button className="mt-5 w-full" size="lg" disabled>
@@ -167,8 +167,8 @@ export function BidPanel({
         </Button>
       )}
       <p className="mt-3 text-xs text-muted-foreground">
-        Card payments are processed by Stripe. Your bid is added only after
-        Stripe confirms the payment to our server.
+        Payments are processed by PayPal. Your bid is added only after
+        PayPal confirms the payment to our server.
       </p>
     </div>
   )

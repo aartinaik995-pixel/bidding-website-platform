@@ -11,6 +11,13 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
 type PayPalLink = { rel: string; href: string }
 type PayPalAmount = { currency_code?: string; value?: string }
 type PayPalCapture = { id: string; status: string; amount?: PayPalAmount }
+type PayPalRelatedIds = { order_id?: string; capture_id?: string }
+type PayPalRefundResource = {
+  id?: string
+  status?: string
+  links?: PayPalLink[]
+  supplementary_data?: { related_ids?: PayPalRelatedIds }
+}
 type PayPalOrder = {
   id: string
   status: string
@@ -143,10 +150,22 @@ async function captureOrder(orderId: string) {
   )
 }
 
+/** Parses a PayPal decimal string ("12.50") into integer cents without float rounding error. */
 function dollarsToCents(value: string | undefined) {
-  if (!value || !/^\d+(\.\d{1,2})?$/.test(value)) return null
-  const cents = Number(value) * 100
+  const match = value?.match(/^(\d+)(?:\.(\d{1,2}))?$/)
+  if (!match) return null
+  const cents = Number(match[1]) * 100 + Number((match[2] ?? '').padEnd(2, '0'))
   return Number.isSafeInteger(cents) ? cents : null
+}
+
+/**
+ * PAYMENT.CAPTURE.REFUNDED resources are refund objects. Their own `id` is the
+ * refund ID, so the capture ID must come from the `up` link or related IDs.
+ */
+function captureIdFromRefund(resource: PayPalRefundResource | undefined) {
+  const upHref = resource?.links?.find((link) => link.rel === 'up')?.href
+  const fromLink = upHref?.split('/').filter(Boolean).pop()
+  return resource?.supplementary_data?.related_ids?.capture_id ?? fromLink ?? null
 }
 
 async function recomputeListingTotals(tx: Tx, listingId: number) {
@@ -280,7 +299,7 @@ export async function processPayPalWebhook(request: Request) {
   const event = webhookEvent as {
     id?: string
     event_type?: string
-    resource?: { id?: string; supplementary_data?: { related_ids?: { order_id?: string } } }
+    resource?: PayPalRefundResource & { supplementary_data?: { related_ids?: PayPalRelatedIds } }
   }
   if (!event.id || !event.event_type) {
     throw new PayPalWebhookVerificationError('Invalid PayPal webhook event.')
@@ -289,10 +308,16 @@ export async function processPayPalWebhook(request: Request) {
   // Retrieve provider data before opening the database transaction; network
   // failures must leave no event marker so PayPal can retry processing safely.
   let completedOrder: PayPalOrder | undefined
+  let refundedCaptureId: string | null = null
   if (event.event_type === 'PAYMENT.CAPTURE.COMPLETED') {
     const orderId = event.resource?.supplementary_data?.related_ids?.order_id
     if (!orderId) throw new PayPalWebhookVerificationError('PayPal event has no order ID.')
     completedOrder = await fetchOrder(orderId)
+  } else if (event.event_type === 'PAYMENT.CAPTURE.REFUNDED') {
+    // Only a completed refund changes rankings; PENDING refunds wait for the final event.
+    if (event.resource?.status === 'COMPLETED') {
+      refundedCaptureId = captureIdFromRefund(event.resource)
+    }
   }
 
   await db.transaction(async (tx) => {
@@ -305,8 +330,8 @@ export async function processPayPalWebhook(request: Request) {
 
     if (completedOrder) {
       await applyPaidOrder(tx, completedOrder)
-    } else if (event.event_type === 'PAYMENT.CAPTURE.REFUNDED' && event.resource?.id) {
-      await applyRefund(tx, event.resource.id)
+    } else if (refundedCaptureId) {
+      await applyRefund(tx, refundedCaptureId)
     }
   })
 }

@@ -1,7 +1,6 @@
 // Server functions for listings: public rankings and website submissions.
 
 import { createServerFn } from '@tanstack/react-start'
-import { and, count, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
 import { db } from '../../db/index.js'
@@ -67,22 +66,11 @@ function slugify(title: string) {
   )
 }
 
-const MAX_PENDING_PER_USER = 5
-
+/** New listings are open for bids immediately; no admin approval step. */
 export const submitListing = createServerFn({ method: 'POST' })
   .validator(submissionInput)
   .handler(async ({ data }) => {
     const user = await requireUser()
-
-    const [pending] = await db
-      .select({ n: count() })
-      .from(listings)
-      .where(and(eq(listings.ownerId, user.id), eq(listings.status, 'pending')))
-    if ((pending?.n ?? 0) >= MAX_PENDING_PER_USER) {
-      throw new Error(
-        'You already have several listings waiting for review. Please wait for them to be approved.',
-      )
-    }
 
     const base = slugify(data.title)
     for (let attempt = 0; attempt < 5; attempt++) {

@@ -73,8 +73,8 @@ function SubmitPage() {
           Put your site on the board
         </h1>
         <p className="mt-3 text-muted-foreground">
-          Tell us about your website. Once your listing is approved and your
-          first bid is verified, it appears on the live leaderboard.
+          Tell us about your website. It opens for bids right away, and it
+          appears on the live leaderboard once its first bid is verified.
         </p>
       </div>
 
@@ -83,13 +83,12 @@ function SubmitPage() {
           <div className="rounded-2xl border bg-card p-8">
             <CheckCircle2 className="size-10 text-live" />
             <h2 className="mt-4 text-2xl font-bold">
-              Listing submitted for review
+              Listing submitted
             </h2>
             <p className="mt-2 text-muted-foreground">
-              Your website is saved. It isn't on the leaderboard yet: a
-              moderator reviews it first, then bidding opens on its page and it
-              ranks as soon as its first payment is verified. You can follow its
-              status on your dashboard.
+              Your website is saved and bidding is open on its page. It ranks as
+              soon as its first payment is verified. You can follow its status on
+              your dashboard.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               {savedSlug ? (
@@ -217,12 +216,12 @@ function SubmitPage() {
               )}
 
               <Button type="submit" size="lg" className="w-full">
-                {state === 'pending' ? 'Saving…' : 'Submit for review'}
+                {state === 'pending' ? 'Saving…' : 'Submit listing'}
               </Button>
               <p className="text-xs text-muted-foreground">
                 Submitting is free. Bids start at{' '}
                 {formatMoney(PLATFORM.minBidCents)} plus a {feePercentLabel()}{' '}
-                platform fee, paid securely through Stripe.
+                platform fee, paid securely through PayPal.
               </p>
             </fieldset>
           </form>
