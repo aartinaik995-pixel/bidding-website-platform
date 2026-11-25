@@ -1,39 +1,37 @@
 # BidMySite
 
-BidMySite is a public leaderboard where people submit their websites and place paid bids to compete for the top positions. Websites are ranked by the total of their verified bids. A transparent platform fee is added at checkout, which is how the owner earns.
-
-## What's live
-
-- **Homepage**: hero, top of the board, how it works, latest verified bids.
-- **Live leaderboard** (`/leaderboard`): search, sorting and ranking rules.
-- **Submit Website** (`/submit`): URL, title and description, with a live preview of the details page. Requests are stored with Netlify Forms.
-- **Website details** (`/site/:slug`): rank, totals, bid history and a bid panel with the fee breakdown.
-- **Dashboard** (`/dashboard`): your websites, bids and receipts.
-- **How it works** (`/how-it-works`): FAQ and an example of the fee breakdown.
-
-No sample or invented bids are shown anywhere. Until real payments exist, the screens show empty states and checkout is disabled.
-
-## Tech
-
-TanStack Start (React 19, Vite), Tailwind CSS 4, shadcn/ui components and Netlify Forms, deployed on Netlify. Planned additions are Netlify Identity for accounts, Netlify Database (Postgres + Drizzle) for listings and bids, and Stripe Checkout with webhook verification for payments.
+BidMySite is a paid-bidding leaderboard. New listings are immediately eligible for bids; they can be removed by an administrator. Ranking totals include only payments verified by PayPal on the server. A transparent 10% platform fee is added to each bid.
 
 ## Run locally
 
 ```bash
 pnpm install
-netlify dev        # or: pnpm dev (no Netlify Forms emulation)
+netlify dev
 ```
 
-## Settings needed for launch
+## PayPal configuration
 
-| What | Where | When |
-| --- | --- | --- |
-| Netlify Database | Provisioned automatically by Netlify on first use | Milestone 3 |
-| Netlify Identity | Enabled automatically when accounts are added | Milestone 2 |
-| `STRIPE_SECRET_KEY` | Netlify → Project configuration → Environment variables | Milestone 4 |
-| `STRIPE_WEBHOOK_SECRET` | Stripe dashboard → Webhooks, endpoint pointing at the site | Milestone 4 |
-| Admin user | Assign the `admin` role to the owner in Netlify Identity | Milestone 2 |
+Set these as **server-side** environment variables in Netlify (never `VITE_*`, never commit credential values):
 
-## Roadmap
+| Variable | Required value |
+| --- | --- |
+| `PAYPAL_CLIENT_ID` | REST app client ID from the PayPal Developer Dashboard for the selected environment |
+| `PAYPAL_CLIENT_SECRET` | Matching REST app secret; keep private and rotate if exposed |
+| `PAYPAL_WEBHOOK_ID` | Webhook ID created in the same PayPal app for the deployed webhook endpoint |
+| `PAYPAL_ENVIRONMENT` | `sandbox` for testing; set to `live` only for production credentials |
 
-See [PLAN.md](PLAN.md). Next up: user accounts, the database, Stripe payments, live updates, the admin dashboard with fee reporting, and launch hardening.
+Register `https://<your-deployed-domain>/api/paypal-webhook` in the same PayPal app with events `PAYMENT.CAPTURE.COMPLETED` and `PAYMENT.CAPTURE.REFUNDED`. Use the webhook ID PayPal assigns for `PAYPAL_WEBHOOK_ID`. The webhook URL must be publicly reachable over HTTPS.
+
+The project also needs Netlify Database/Postgres and Netlify Identity configured as before. Deploying the SQL migration is required before the new payment flow can work. No PayPal credentials are present in this repository; obtain the real sandbox keys and webhook ID from your PayPal account. Test orders, capture, signature verification, refunds, and retries in sandbox before switching all three PayPal values to the live app equivalents and setting the environment to `live`.
+
+## Checks
+
+```bash
+pnpm run build
+pnpm run typecheck
+pnpm run lint
+pnpm run format:check
+pnpm test
+```
+
+Deployment is intentionally not triggered by these code changes; review and approve deployment separately.
