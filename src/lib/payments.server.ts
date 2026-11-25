@@ -9,6 +9,8 @@ import { PLATFORM } from './platform'
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0]
 type PayPalLink = { rel: string; href: string }
+type PayPalAmount = { currency_code?: string; value?: string }
+type PayPalCapture = { id: string; status: string; amount?: PayPalAmount }
 type PayPalOrder = {
   id: string
   status: string
@@ -16,14 +18,21 @@ type PayPalOrder = {
   purchase_units?: Array<{
     reference_id?: string
     custom_id?: string
-    amount?: { currency_code?: string; value?: string }
-    payments?: { captures?: Array<{ id: string; status: string; amount?: { currency_code?: string; value?: string } }> }
+    amount?: PayPalAmount
+    payments?: { captures?: PayPalCapture[] }
   }>
 }
 
 export class PaymentsNotConfiguredError extends Error {
   constructor() {
     super('PayPal payments are not configured yet.')
+  }
+}
+
+export class PayPalWebhookVerificationError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'PayPalWebhookVerificationError'
   }
 }
 
@@ -136,7 +145,8 @@ async function captureOrder(orderId: string) {
 
 function dollarsToCents(value: string | undefined) {
   if (!value || !/^\d+(\.\d{1,2})?$/.test(value)) return null
-  return Math.round(Number(value) * 100)
+  const cents = Number(value) * 100
+  return Number.isSafeInteger(cents) ? cents : null
 }
 
 async function recomputeListingTotals(tx: Tx, listingId: number) {
@@ -153,10 +163,12 @@ async function recomputeListingTotals(tx: Tx, listingId: number) {
 
 async function applyPaidOrder(tx: Tx, order: PayPalOrder) {
   if (order.status !== 'COMPLETED') return 'not-paid' as const
-  const unit = order.purchase_units?.[0]
-  const capture = unit?.payments?.captures?.find((entry) => entry.status === 'COMPLETED')
-  const bidId = Number(unit?.custom_id ?? unit?.reference_id)
-  if (!Number.isInteger(bidId) || !capture?.id) return 'unknown-bid' as const
+  // This app creates exactly one purchase unit per bid. Refuse ambiguous orders.
+  if (!order.id || order.purchase_units?.length !== 1) return 'invalid-order' as const
+  const unit = order.purchase_units[0]
+  const capture = unit.payments?.captures?.find((entry) => entry.status === 'COMPLETED')
+  const bidId = Number(unit.custom_id ?? unit.reference_id)
+  if (!Number.isSafeInteger(bidId) || !capture?.id) return 'unknown-bid' as const
 
   const [bid] = await tx
     .select()
@@ -166,11 +178,16 @@ async function applyPaidOrder(tx: Tx, order: PayPalOrder) {
   if (!bid) return 'unknown-bid' as const
   if (bid.status === 'paid' || bid.status === 'refunded') return 'already-applied' as const
 
+  const orderAmount = dollarsToCents(unit.amount?.value)
+  const captureAmount = dollarsToCents(capture.amount?.value)
+  const currency = bid.currency.toLowerCase()
   if (
-    dollarsToCents(unit?.amount?.value) !== bid.totalChargeCents ||
-    unit?.amount?.currency_code?.toLowerCase() !== bid.currency
+    orderAmount !== bid.totalChargeCents ||
+    captureAmount !== bid.totalChargeCents ||
+    unit.amount?.currency_code?.toLowerCase() !== currency ||
+    capture.amount?.currency_code?.toLowerCase() !== currency
   ) {
-    console.error('PayPal amount mismatch for bid', bid.id)
+    console.error('PayPal amount or currency mismatch for bid', bid.id)
     return 'amount-mismatch' as const
   }
 
@@ -234,6 +251,12 @@ export async function refundCapture(captureId: string, bidId: number) {
 export async function processPayPalWebhook(request: Request) {
   const config = credentials()
   if (!config) throw new PaymentsNotConfiguredError()
+  let webhookEvent: unknown
+  try {
+    webhookEvent = await request.json()
+  } catch {
+    throw new PayPalWebhookVerificationError('Invalid webhook JSON.')
+  }
   const transmission = {
     auth_algo: request.headers.get('paypal-auth-algo'),
     cert_url: request.headers.get('paypal-cert-url'),
@@ -241,25 +264,37 @@ export async function processPayPalWebhook(request: Request) {
     transmission_sig: request.headers.get('paypal-transmission-sig'),
     transmission_time: request.headers.get('paypal-transmission-time'),
     webhook_id: config.webhookId,
-    webhook_event: await request.json(),
+    webhook_event: webhookEvent,
   }
   if (Object.values(transmission).some((value) => !value)) {
-    throw new Error('PayPal webhook is missing signature headers.')
+    throw new PayPalWebhookVerificationError('PayPal webhook is missing signature headers.')
   }
   const verification = await paypalRequest<{ verification_status?: string }>(
     '/v1/notifications/verify-webhook-signature',
     { method: 'POST', body: JSON.stringify(transmission) },
   )
   if (verification.verification_status !== 'SUCCESS') {
-    throw new Error('PayPal webhook signature verification failed.')
+    throw new PayPalWebhookVerificationError('PayPal webhook signature verification failed.')
   }
 
-  const event = transmission.webhook_event as {
+  const event = webhookEvent as {
     id?: string
     event_type?: string
-    resource?: { id?: string; status?: string; supplementary_data?: { related_ids?: { order_id?: string } } }
+    resource?: { id?: string; supplementary_data?: { related_ids?: { order_id?: string } } }
   }
-  if (!event.id || !event.event_type) throw new Error('Invalid PayPal webhook event.')
+  if (!event.id || !event.event_type) {
+    throw new PayPalWebhookVerificationError('Invalid PayPal webhook event.')
+  }
+
+  // Retrieve provider data before opening the database transaction; network
+  // failures must leave no event marker so PayPal can retry processing safely.
+  let completedOrder: PayPalOrder | undefined
+  if (event.event_type === 'PAYMENT.CAPTURE.COMPLETED') {
+    const orderId = event.resource?.supplementary_data?.related_ids?.order_id
+    if (!orderId) throw new PayPalWebhookVerificationError('PayPal event has no order ID.')
+    completedOrder = await fetchOrder(orderId)
+  }
+
   await db.transaction(async (tx) => {
     const inserted = await tx
       .insert(paypalEvents)
@@ -268,11 +303,8 @@ export async function processPayPalWebhook(request: Request) {
       .returning({ id: paypalEvents.id })
     if (!inserted.length) return
 
-    if (event.event_type === 'PAYMENT.CAPTURE.COMPLETED') {
-      const orderId = event.resource?.supplementary_data?.related_ids?.order_id
-      if (!orderId) return
-      const order = await fetchOrder(orderId)
-      await applyPaidOrder(tx, order)
+    if (completedOrder) {
+      await applyPaidOrder(tx, completedOrder)
     } else if (event.event_type === 'PAYMENT.CAPTURE.REFUNDED' && event.resource?.id) {
       await applyRefund(tx, event.resource.id)
     }
