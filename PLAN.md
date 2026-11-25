@@ -30,18 +30,18 @@ The terms, privacy, and refund pages are operational drafts. The operator's lega
 - Tables:
   - `users`: mirrors Identity users.
   - `listings`: URL, title, description, owner, and a status of approved or removed. The migration publishes legacy pending listings.
-  - `bids`: listing, bidder, amount, fee, status (pending, paid, failed or refunded), Stripe session and payment IDs.
+  - `bids`: listing, bidder, amount, fee, status (pending, paid, failed or refunded), PayPal order and capture IDs.
   - `platform_ledger`: one row per fee or refund, for revenue reporting.
 - Submissions are authenticated, validated, rate-limited, and persisted as live listings.
 - Netlify Forms import is not part of the current repository; no Forms inbox was accessible during this audit.
 
-## Milestone 4 — Secure payments (Stripe code implemented; activation unverified)
+## Milestone 4 — Secure payments (PayPal code implemented; activation unverified)
 
-- "Place a bid" creates a `pending` bid and a Stripe Checkout Session on the server. The amount is computed server-side from `PLATFORM`, never trusted from the browser.
-- A Stripe webhook verifies the signature using the webhook secret. It updates bid status, listing totals, and the platform ledger transactionally and idempotently.
+- "Place a bid" creates a `pending` bid and a PayPal order on the server. The amount is computed server-side from `PLATFORM`, never trusted from the browser.
+- A PayPal webhook verifies the signature with PayPal's verify API. It updates bid status, listing totals, and the platform ledger transactionally and idempotently.
 - The success page reads the bid status from the database and shows "Payment confirmed" only when the status is `paid`. Otherwise it shows "Waiting for confirmation".
 - Checkout is disabled unless both `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` are present. Their configured values and the webhook endpoint were not accessible for this audit.
-- No Razorpay or PayPal integration exists. Use Stripe test mode first; variable presence alone does not verify a working payment setup.
+- No Razorpay or Stripe integration exists. Use the PayPal sandbox first; variable presence alone does not verify a working payment setup.
 
 ## Milestone 5 — Live leaderboard ✅ (email notifications remain)
 
@@ -53,11 +53,11 @@ The terms, privacy, and refund pages are operational drafts. The operator's lega
 - `/admin`, available only to the admin role:
   - live listings can be removed or restored; submissions no longer wait for approval
   - all bids with their payment status
-  - refunds issued through Stripe
+  - refunds issued through PayPal
 - Revenue: gross bids, platform fees earned, refunds and net, by day and month, with CSV export.
 
 ## Milestone 7 — Hardening and launch (code added; production setup outstanding)
 
 - Database-backed rate limits protect listing submission and checkout creation. Listing URLs reject local/reserved hosts, credentials, and IP literals; outbound user links use `rel="nofollow ugc"`.
 - Terms of Service, Privacy Policy, and Refund Policy pages are present as drafts. Add the verified operator identity, governing region, support/privacy contact, and retention period before public launch.
-- Configure Netlify Identity and Database, then add Stripe test credentials and a verified webhook endpoint. Switch to live mode and configure payouts only after test payments and refunds are confirmed. No production deployment or live payment was performed in this audit.
+- Configure Netlify Identity and Database, then add PayPal sandbox credentials and a verified webhook endpoint. Switch to live mode and configure payouts only after test payments and refunds are confirmed. No production deployment or live payment was performed in this audit.
