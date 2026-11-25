@@ -8,7 +8,11 @@ import { z } from "zod";
 import { db } from "../../db/index.js";
 import { bids, listings, platformLedger } from "../../db/schema.js";
 import { requireAdmin } from "./auth.server";
-import { applyRefund, getStripe, paymentsConfigured } from "./payments.server";
+import {
+  applyRefundedCapture,
+  paypalConfigured,
+  refundCapture,
+} from "./paypal.server";
 import { toListing } from "./listings.server";
 import type { BidStatus } from "./platform";
 
@@ -45,7 +49,7 @@ export const getAdminOverview = createServerFn({ method: "GET" }).handler(
       ]);
 
     return {
-      paymentsReady: paymentsConfigured(),
+      paymentsReady: paypalConfigured(),
       listings: allListings.map((row) => ({
         ...toListing(row),
         contactEmail: row.contactEmail,
@@ -59,7 +63,7 @@ export const getAdminOverview = createServerFn({ method: "GET" }).handler(
         totalChargeCents: bid.totalChargeCents,
         createdAt: bid.createdAt.toISOString(),
         paidAt: bid.paidAt?.toISOString() ?? null,
-        hasPaymentIntent: Boolean(bid.stripePaymentIntentId),
+        hasPaymentIntent: Boolean(bid.paypalCaptureId),
         listing: { slug: listing.slug, title: listing.title },
       })),
       revenue: {
@@ -110,32 +114,35 @@ export const setListingStatus = createServerFn({ method: "POST" })
   });
 
 /**
- * Issues a full Stripe refund. The bid leaves the rankings once Stripe
- * confirms the refund (immediately if it succeeded, otherwise via webhook).
+ * Issues a full PayPal refund. The bid leaves the rankings once PayPal
+ * confirms the refund (immediately if COMPLETED, otherwise via webhook).
  */
 export const refundBid = createServerFn({ method: "POST" })
   .validator(z.object({ bidId: z.coerce.number().int().positive() }))
   .handler(async ({ data }) => {
     await requireAdmin();
-    const stripe = getStripe();
-    if (!stripe) throw new Error("Payments are not configured yet.");
+    if (!paypalConfigured()) throw new Error("Payments are not configured yet.");
     const [bid] = await db.select().from(bids).where(eq(bids.id, data.bidId));
-    if (!bid || bid.status !== "paid" || !bid.stripePaymentIntentId) {
+    if (!bid || bid.status !== "paid" || !bid.paypalCaptureId) {
       throw new Error("Only paid bids can be refunded.");
     }
-    const refund = await stripe.refunds.create(
-      {
-        payment_intent: bid.stripePaymentIntentId,
-        reason: "requested_by_customer",
-      },
-      { idempotencyKey: `bidmysite-refund-${bid.id}` },
-    );
-    if (refund.status === "succeeded") {
-      await db.transaction((tx) => applyRefund(tx, bid.stripePaymentIntentId!));
+    const captureId = bid.paypalCaptureId;
+    let status: string;
+    try {
+      status = await refundCapture(bid.id, captureId);
+    } catch (error) {
+      console.error(
+        "PayPal refund failed",
+        error instanceof Error ? error.message : error,
+      );
+      throw new Error("PayPal could not process this refund.");
+    }
+    if (status === "COMPLETED") {
+      await db.transaction((tx) => applyRefundedCapture(tx, captureId));
       return { status: "refunded" as const };
     }
-    if (refund.status === "failed" || refund.status === "canceled") {
-      throw new Error("Stripe could not process this refund.");
+    if (status === "FAILED" || status === "CANCELLED") {
+      throw new Error("PayPal could not process this refund.");
     }
     return { status: "processing" as const };
   });

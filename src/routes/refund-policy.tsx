@@ -18,8 +18,8 @@ const sections: PolicySection[] = [
   {
     title: "How refunds work",
     paragraphs: [
-      "The admin dashboard supports full refunds to the original payment method through Stripe. Partial refunds are not supported in the application.",
-      "A refund is not treated as complete until Stripe confirms it. While a refund is processing, the bid may remain in the ranking; once confirmed, the bid and its platform fee are removed from the applicable totals and the ledger records the refund.",
+      "The admin dashboard supports full refunds to the original payment method through PayPal. Partial refunds are not supported in the application.",
+      "A refund is not treated as complete until PayPal confirms it. While a refund is processing, the bid may remain in the ranking; once confirmed, the bid and its platform fee are removed from the applicable totals and the ledger records the refund.",
       "Payment providers and banks may take additional time to post a completed refund. The application does not promise a specific posting time.",
     ],
   },
@@ -32,7 +32,7 @@ const sections: PolicySection[] = [
   {
     title: "Provider availability",
     paragraphs: [
-      "Refunds require a valid Stripe configuration and the original payment record. If checkout is not configured, no new payments can be accepted through the application. Razorpay and PayPal are not implemented.",
+      "Refunds require a valid PayPal configuration and the original payment record. If checkout is not configured, no new payments can be accepted through the application. Razorpay and Stripe are not implemented.",
     ],
   },
 ];

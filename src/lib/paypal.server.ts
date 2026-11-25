@@ -140,6 +140,19 @@ export async function captureOrder(orderId: string) {
   });
 }
 
+/** Issues a full refund for a capture. Returns PayPal's refund status. */
+export async function refundCapture(bidId: number, captureId: string) {
+  const refund = await paypalFetch<{ id: string; status: string }>(
+    `/v2/payments/captures/${encodeURIComponent(captureId)}/refund`,
+    {
+      method: "POST",
+      headers: { "PayPal-Request-Id": `bidmysite-refund-${bidId}` },
+      body: JSON.stringify({}),
+    },
+  );
+  return refund.status;
+}
+
 /** Looks up an order without capturing it. Used by reconciliation. */
 export async function getOrder(orderId: string) {
   return paypalFetch<PaypalOrder>(`/v2/checkout/orders/${encodeURIComponent(orderId)}`);

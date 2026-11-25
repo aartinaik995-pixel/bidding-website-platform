@@ -12,11 +12,10 @@ import { enforceUserRateLimit } from "./rate-limit.server";
 import {
   CHECKOUT_TTL_SECONDS,
   CURRENCY,
-  getStripe,
-  paymentsConfigured,
-  PaymentsNotConfiguredError,
-  reconcileBid,
-} from "./payments.server";
+  createPaypalOrder,
+  finalizeBidOrder,
+  paypalConfigured,
+} from "./paypal.server";
 import { toListing } from "./listings.server";
 import {
   feeBreakdown,
@@ -42,7 +41,7 @@ export const getSessionUser = createServerFn({ method: "GET" }).handler(
 
 /** Safe, public readiness flag; never returns configured credential values. */
 export const getPaymentsReady = createServerFn({ method: "GET" }).handler(
-  async () => paymentsConfigured(),
+  async () => paypalConfigured(),
 );
 
 export const getDashboard = createServerFn({ method: "GET" }).handler(
@@ -95,8 +94,8 @@ export const getDashboard = createServerFn({ method: "GET" }).handler(
 const MAX_OPEN_CHECKOUTS = 5;
 
 /**
- * Creates a pending bid and a Stripe Checkout Session. The charge is priced
- * here from PLATFORM rules; the browser only sends the bid amount.
+ * Creates a pending bid and a PayPal order. The charge is priced here from
+ * PLATFORM rules; the browser only sends the bid amount.
  */
 export const createBidCheckout = createServerFn({ method: "POST" })
   .validator(
@@ -109,9 +108,9 @@ export const createBidCheckout = createServerFn({ method: "POST" })
     }),
   )
   .handler(async ({ data }) => {
-    const stripe = getStripe();
-    if (!stripe || !paymentsConfigured())
-      throw new PaymentsNotConfiguredError();
+    if (!paypalConfigured()) {
+      throw new Error("Payments are not configured yet.");
+    }
     const user = await requireUser();
 
     const [listing] = await db
@@ -160,63 +159,34 @@ export const createBidCheckout = createServerFn({ method: "POST" })
         amountCents,
         feeCents,
         totalChargeCents,
-        currency: CURRENCY,
+        currency: CURRENCY.toLowerCase(),
       })
       .returning({ id: bids.id });
     if (!bid) throw new Error("Could not start checkout.");
 
     const origin = getRequestUrl().origin;
-    const metadata = { bidId: String(bid.id), listingId: String(listing.id) };
     try {
-      const session = await stripe.checkout.sessions.create(
-        {
-          mode: "payment",
-          customer_email: user.email,
-          client_reference_id: String(bid.id),
-          metadata,
-          payment_intent_data: { metadata },
-          expires_at: Math.floor(Date.now() / 1000) + CHECKOUT_TTL_SECONDS,
-          line_items: [
-            {
-              quantity: 1,
-              price_data: {
-                currency: CURRENCY,
-                unit_amount: amountCents,
-                product_data: { name: `Bid on ${listing.title}`.slice(0, 120) },
-              },
-            },
-            {
-              quantity: 1,
-              price_data: {
-                currency: CURRENCY,
-                unit_amount: feeCents,
-                product_data: {
-                  name: `BidMySite platform fee (${feePercentLabel()})`,
-                },
-              },
-            },
-          ],
-          success_url: `${origin}/checkout/success?bid=${bid.id}`,
-          cancel_url: `${origin}/site/${encodeURIComponent(listing.slug)}?checkout=cancelled`,
-        },
-        { idempotencyKey: `bidmysite-bid-${bid.id}` },
-      );
+      const { orderId, approveUrl } = await createPaypalOrder({
+        bidId: bid.id,
+        listingTitle: listing.title,
+        totalChargeCents,
+        origin,
+      });
       await db
         .update(bids)
-        .set({ stripeSessionId: session.id })
+        .set({ paypalOrderId: orderId })
         .where(eq(bids.id, bid.id));
-      if (!session.url) throw new Error("Stripe did not return a checkout URL");
-      return { url: session.url };
+      return { url: approveUrl };
     } catch (error) {
       await db
         .update(bids)
         .set({ status: "failed" })
         .where(eq(bids.id, bid.id));
       console.error(
-        "Stripe checkout creation failed",
+        "PayPal order creation failed",
         error instanceof Error ? error.message : error,
       );
-      // The Stripe error is logged above; it is not attached so it never reaches the browser.
+      // The PayPal error is logged above; it is not attached so it never reaches the browser.
       // eslint-disable-next-line preserve-caught-error
       throw new Error(
         "Could not open secure checkout. Nothing was charged — please try again.",
@@ -224,7 +194,10 @@ export const createBidCheckout = createServerFn({ method: "POST" })
     }
   });
 
-/** Receipt for one of the user's bids. Asks Stripe directly if the webhook hasn't landed yet. */
+/**
+ * Receipt for one of the user's bids. Captures the PayPal order if the buyer
+ * approved it but the success page never ran the capture.
+ */
 export const getBidReceipt = createServerFn({ method: "GET" })
   .validator(z.object({ bidId: z.coerce.number().int().positive() }))
   .handler(async ({ data }) => {
@@ -240,11 +213,11 @@ export const getBidReceipt = createServerFn({ method: "GET" })
 
     if (row.bid.status === "pending") {
       try {
-        await reconcileBid(row.bid.id);
+        await finalizeBidOrder(row.bid.id);
         [row] = await load();
       } catch (error) {
         console.error(
-          "Bid reconcile failed",
+          "Bid capture failed",
           error instanceof Error ? error.message : error,
         );
       }

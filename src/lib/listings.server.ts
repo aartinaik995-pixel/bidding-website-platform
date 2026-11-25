@@ -6,7 +6,7 @@ import { and, count, desc, eq, gt, sql } from 'drizzle-orm'
 import { db } from '../../db/index.js'
 import { bids, listings } from '../../db/schema.js'
 import type { SessionUser } from './auth.server'
-import { paymentsConfigured } from './payments.server'
+import { paypalConfigured } from './paypal.server'
 import {
   rankListings,
   type Bid,
@@ -152,6 +152,6 @@ export async function loadListingPage(
     leaderTotalCents: leader?.totalCents ?? 0,
     signedIn: Boolean(viewer),
     isOwner,
-    paymentsReady: paymentsConfigured(),
+    paymentsReady: paypalConfigured(),
   }
 }

@@ -230,7 +230,7 @@ function SubmitPage() {
                 {formatMoney(PLATFORM.minBidCents)} plus a {feePercentLabel()}{" "}
                 platform fee.{" "}
                 {paymentsReady
-                  ? "Stripe Checkout is configured for secure payment."
+                  ? "PayPal checkout is configured for secure payment."
                   : "Checkout is unavailable until payment credentials are configured; no payment can be taken yet."}
               </p>
             </fieldset>

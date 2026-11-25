@@ -36,7 +36,7 @@ function CheckoutResult() {
   const receipt = Route.useLoaderData();
   const router = useRouter();
 
-  // The status shown here is read from the database. Keep checking while Stripe confirms.
+  // The status shown here is read from the database. Keep checking while PayPal confirms.
   useEffect(() => {
     if (receipt.status !== "pending") return;
     const id = window.setInterval(() => void router.invalidate(), 3000);

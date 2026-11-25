@@ -94,8 +94,8 @@ function AdminPage() {
           <AlertTriangle />
           <AlertTitle>Payments are not connected</AlertTitle>
           <AlertDescription>
-            Stripe Checkout stays disabled until STRIPE_SECRET_KEY and
-            STRIPE_WEBHOOK_SECRET are configured in the hosting environment.
+            PayPal checkout stays disabled until PAYPAL_CLIENT_ID,
+            PAYPAL_CLIENT_SECRET and PAYPAL_WEBHOOK_ID are configured in the hosting environment.
             Secret values are never shown here.
           </AlertDescription>
         </Alert>
@@ -338,7 +338,7 @@ function RefundButton({
   async function run() {
     if (
       !window.confirm(
-        "Refund this bid in full through Stripe? It will be removed from the rankings.",
+        "Refund this bid in full through PayPal? It will be removed from the rankings.",
       )
     )
       return;
@@ -348,7 +348,7 @@ function RefundButton({
       toast.success(
         result.status === "refunded"
           ? "Refunded. The bid no longer counts toward rankings."
-          : "Refund submitted. The bid is removed once Stripe confirms it.",
+          : "Refund submitted. The bid is removed once PayPal confirms it.",
       );
       await router.invalidate();
     } catch (error) {

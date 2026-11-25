@@ -18,8 +18,8 @@ import {
 
 /**
  * Bid amount picker with a transparent fee breakdown. "Pay" sends only the
- * bid amount to the server, which prices the charge and opens Stripe
- * Checkout. The bid counts only after Stripe confirms the payment.
+ * bid amount to the server, which prices the charge and opens a PayPal
+ * order. The bid counts only after the server captures the payment.
  */
 export function BidPanel({
   listingId,
@@ -173,7 +173,7 @@ export function BidPanel({
       )}
       <p className="mt-3 text-xs text-muted-foreground">
         {paymentsReady
-          ? "Stripe Checkout is configured. Your bid is added only after Stripe confirms payment to our server."
+          ? "PayPal checkout is configured. Your bid is added only after the server confirms the PayPal payment."
           : "Payments are not configured. Checkout is disabled, and no bid will be counted without server confirmation."}
       </p>
     </div>
