@@ -1,9 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { createFileRoute } from '@tanstack/react-router'
 
 import { processPayPalWebhook } from '@/lib/payments.server'
 
-// The only mechanism for receiving provider-side payment/refund notifications.
+// PayPal provider notifications are verified and processed server-side.
 export const Route = createFileRoute('/api/paypal-webhook')({
   server: {
     handlers: {
@@ -12,7 +11,10 @@ export const Route = createFileRoute('/api/paypal-webhook')({
           await processPayPalWebhook(request)
           return Response.json({ received: true })
         } catch {
-          return Response.json({ error: 'Invalid or unprocessed PayPal webhook' }, { status: 400 })
+          return Response.json(
+            { error: 'Invalid or unprocessed PayPal webhook' },
+            { status: 400 },
+          )
         }
       },
     },
