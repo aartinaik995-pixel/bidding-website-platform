@@ -17,6 +17,7 @@ import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SubmitRouteImport } from './routes/submit'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api.stripe-webhook'
+import { Route as ApiPaypalWebhookRouteImport } from './routes/api.paypal-webhook'
 import { Route as CheckoutSuccessRouteImport } from './routes/checkout.success'
 import { Route as SiteSlugRouteImport } from './routes/site.$slug'
 import { Route as ApiAdminRevenueCsvRouteImport } from './routes/api.admin.revenue-csv'
@@ -61,6 +62,11 @@ const ApiStripeWebhookRoute = ApiStripeWebhookRouteImport.update({
   path: '/api/stripe-webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPaypalWebhookRoute = ApiPaypalWebhookRouteImport.update({
+  id: '/api/paypal-webhook',
+  path: '/api/paypal-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CheckoutSuccessRoute = CheckoutSuccessRouteImport.update({
   id: '/checkout/success',
   path: '/checkout/success',
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/submit': typeof SubmitRoute
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
+  '/api/paypal-webhook': typeof ApiPaypalWebhookRoute
   '/checkout/success': typeof CheckoutSuccessRoute
   '/site/$slug': typeof SiteSlugRoute
   '/api/admin/revenue-csv': typeof ApiAdminRevenueCsvRoute
@@ -99,6 +106,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/submit': typeof SubmitRoute
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
+  '/api/paypal-webhook': typeof ApiPaypalWebhookRoute
   '/checkout/success': typeof CheckoutSuccessRoute
   '/site/$slug': typeof SiteSlugRoute
   '/api/admin/revenue-csv': typeof ApiAdminRevenueCsvRoute
@@ -113,6 +121,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/submit': typeof SubmitRoute
   '/api/stripe-webhook': typeof ApiStripeWebhookRoute
+  '/api/paypal-webhook': typeof ApiPaypalWebhookRoute
   '/checkout/success': typeof CheckoutSuccessRoute
   '/site/$slug': typeof SiteSlugRoute
   '/api/admin/revenue-csv': typeof ApiAdminRevenueCsvRoute
@@ -128,6 +137,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/submit'
     | '/api/stripe-webhook'
+    | '/api/paypal-webhook'
     | '/checkout/success'
     | '/site/$slug'
     | '/api/admin/revenue-csv'
@@ -141,6 +151,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/submit'
     | '/api/stripe-webhook'
+    | '/api/paypal-webhook'
     | '/checkout/success'
     | '/site/$slug'
     | '/api/admin/revenue-csv'
@@ -154,6 +165,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/submit'
     | '/api/stripe-webhook'
+    | '/api/paypal-webhook'
     | '/checkout/success'
     | '/site/$slug'
     | '/api/admin/revenue-csv'
@@ -168,6 +180,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   SubmitRoute: typeof SubmitRoute
   ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
+  ApiPaypalWebhookRoute: typeof ApiPaypalWebhookRoute
   CheckoutSuccessRoute: typeof CheckoutSuccessRoute
   SiteSlugRoute: typeof SiteSlugRoute
   ApiAdminRevenueCsvRoute: typeof ApiAdminRevenueCsvRoute
@@ -231,6 +244,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiStripeWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/paypal-webhook': {
+      id: '/api/paypal-webhook'
+      path: '/api/paypal-webhook'
+      fullPath: '/api/paypal-webhook'
+      preLoaderRoute: typeof ApiPaypalWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/checkout/success': {
       id: '/checkout/success'
       path: '/checkout/success'
@@ -264,6 +284,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   SubmitRoute: SubmitRoute,
   ApiStripeWebhookRoute: ApiStripeWebhookRoute,
+  ApiPaypalWebhookRoute: ApiPaypalWebhookRoute,
   CheckoutSuccessRoute: CheckoutSuccessRoute,
   SiteSlugRoute: SiteSlugRoute,
   ApiAdminRevenueCsvRoute: ApiAdminRevenueCsvRoute,
