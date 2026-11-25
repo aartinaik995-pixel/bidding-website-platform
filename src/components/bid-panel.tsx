@@ -8,33 +8,19 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { createBidCheckout } from '@/lib/account.functions'
 import { feeBreakdown, feePercentLabel, formatMoney, isValidBidAmount, PLATFORM } from '@/lib/platform'
-
-export function BidPanel({ listingId, currentTotalCents, leaderTotalCents, isLeader, open, signedIn }: {
-  listingId: string; currentTotalCents: number; leaderTotalCents: number; isLeader: boolean; open: boolean; signedIn: boolean; paymentsReady: boolean
-}) {
-  const location = useLocation()
-  const startCheckout = useServerFn(createBidCheckout)
-  const [pending, setPending] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+export function BidPanel({ listingId, currentTotalCents, leaderTotalCents, isLeader, open, signedIn }: { listingId: string; currentTotalCents: number; leaderTotalCents: number; isLeader: boolean; open: boolean; signedIn: boolean; paymentsReady: boolean }) {
+  const location = useLocation(); const startCheckout = useServerFn(createBidCheckout)
+  const [pending, setPending] = useState(false); const [error, setError] = useState<string | null>(null)
   const toLead = isLeader ? PLATFORM.minBidCents : Math.max(PLATFORM.minBidCents, leaderTotalCents - currentTotalCents + 100)
-  const [dollars, setDollars] = useState(String(toLead / 100))
-  const cents = Math.round(Number(dollars) * 100)
-  const valid = isValidBidAmount(cents)
-  const { feeCents, totalChargeCents } = feeBreakdown(valid ? cents : 0)
+  const [dollars, setDollars] = useState(String(toLead / 100)); const cents = Math.round(Number(dollars) * 100)
+  const valid = isValidBidAmount(cents); const { feeCents, totalChargeCents } = feeBreakdown(valid ? cents : 0)
   const presets = [toLead, toLead + 500, toLead + 2000].filter(isValidBidAmount)
-
   async function pay() {
     if (!valid || pending) return
     setPending(true); setError(null)
-    try {
-      const { url } = await startCheckout({ data: { listingId: Number(listingId), amountCents: cents } })
-      window.location.assign(url)
-    } catch (err) {
-      setError(err instanceof Error && err.message ? err.message : 'Could not open PayPal checkout.')
-      setPending(false)
-    }
+    try { const { url } = await startCheckout({ data: { listingId: Number(listingId), amountCents: cents } }); window.location.assign(url) }
+    catch (err) { setError(err instanceof Error && err.message ? err.message : 'Could not open PayPal checkout.'); setPending(false) }
   }
-
   return <div className="rounded-2xl border bg-card p-6">
     <h2 className="text-lg font-bold">Place a bid</h2>
     <p className="mt-1 text-sm text-muted-foreground">{isLeader ? 'This website holds #1. Bid again to extend its lead.' : `${formatMoney(toLead)} takes this website to #1.`}</p>
@@ -43,6 +29,6 @@ export function BidPanel({ listingId, currentTotalCents, leaderTotalCents, isLea
     <dl className="mt-5 space-y-2 border-t pt-4 text-sm"><div className="flex justify-between"><dt className="text-muted-foreground">Bid (counts toward rank)</dt><dd className="tabular">{formatMoney(valid ? cents : 0)}</dd></div><div className="flex justify-between"><dt className="text-muted-foreground">Platform fee ({feePercentLabel()})</dt><dd className="tabular">{formatMoney(feeCents)}</dd></div><div className="flex justify-between border-t pt-2 font-bold"><dt>You pay</dt><dd className="tabular">{formatMoney(totalChargeCents)}</dd></div></dl>
     {error && <Alert variant="destructive" role="alert" className="mt-5"><AlertDescription>{error}</AlertDescription></Alert>}
     {!open ? <Button className="mt-5 w-full" size="lg" disabled><Lock /> Bidding is unavailable for this listing</Button> : !signedIn ? <Button asChild className="mt-5 w-full" size="lg"><Link to="/login" search={{ redirect: location.pathname }}><Lock /> Sign in to bid</Link></Button> : <Button className="mt-5 w-full" size="lg" disabled={!valid || pending} onClick={pay}><Lock /> {pending ? 'Opening PayPal…' : `Pay ${formatMoney(totalChargeCents)} with PayPal`}</Button>}
-    <p className="mt-3 text-xs text-muted-foreground">PayPal processes your payment. A bid counts only after our server verifies the completed payment with PayPal.</p>
+    <p className="mt-3 text-xs text-muted-foreground">PayPal processes payments. Bids count only after the server verifies a completed PayPal capture.</p>
   </div>
 }
