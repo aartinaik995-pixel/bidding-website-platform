@@ -36,6 +36,7 @@ function CheckoutResult() {
     paid: { icon: <CheckCircle2 className="size-10 text-live" />, title: 'Payment confirmed', body: `PayPal confirmed your payment. ${formatMoney(receipt.amountCents)} has been added to ${receipt.listing.title}'s total.` },
     pending: { icon: <Hourglass className="size-10 text-primary motion-safe:animate-pulse" />, title: 'Waiting for confirmation', body: "PayPal is confirming your payment. Your bid will count only after the server verifies it." },
     failed: { icon: <XCircle className="size-10 text-destructive" />, title: 'Payment not completed', body: 'The payment was not completed. No bid was added.' },
+    disputed: { icon: <Hourglass className="size-10 text-primary" />, title: 'Payment under dispute', body: 'PayPal has an open dispute on this payment. The bid is paused and does not count toward the ranking until it is resolved.' },
     refunded: { icon: <RotateCcw className="size-10 text-muted-foreground" />, title: 'Payment refunded', body: 'This payment was refunded, so it no longer counts toward the ranking.' },
   }[receipt.status]
 

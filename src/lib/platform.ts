@@ -15,7 +15,8 @@ export const PLATFORM = {
   spotlightSize: 10,
 } as const
 
-export type BidStatus = 'pending' | 'paid' | 'failed' | 'refunded'
+/** disputed: a PayPal buyer dispute is open; the bid is excluded from rankings until resolved. */
+export type BidStatus = 'pending' | 'paid' | 'failed' | 'refunded' | 'disputed'
 export type ListingStatus = 'pending' | 'approved' | 'removed'
 
 export type Bid = {

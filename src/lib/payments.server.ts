@@ -12,6 +12,10 @@ type PayPalLink = { rel: string; href: string }
 type PayPalAmount = { currency_code?: string; value?: string }
 type PayPalCapture = { id: string; status: string; amount?: PayPalAmount }
 type PayPalRelatedIds = { order_id?: string; capture_id?: string }
+type PayPalDisputeResource = {
+  dispute_outcome?: { outcome_code?: string }
+  disputed_transactions?: Array<{ seller_transaction_id?: string }>
+}
 type PayPalRefundResource = {
   id?: string
   status?: string
@@ -47,9 +51,18 @@ function credentials() {
   const clientId = process.env.PAYPAL_CLIENT_ID
   const clientSecret = process.env.PAYPAL_CLIENT_SECRET
   const webhookId = process.env.PAYPAL_WEBHOOK_ID
-  const environment = process.env.PAYPAL_ENVIRONMENT ?? 'sandbox'
+  const environment = process.env.PAYPAL_ENVIRONMENT
+  // Fail closed: PAYPAL_ENVIRONMENT must be set explicitly (there is no implicit sandbox),
+  // and production deploys must use live credentials. Otherwise checkout stays disabled.
   if (!clientId || !clientSecret || !webhookId) return null
-  if (environment !== 'sandbox' && environment !== 'live') return null
+  if (environment !== 'sandbox' && environment !== 'live') {
+    console.error('PayPal disabled: PAYPAL_ENVIRONMENT must be "sandbox" or "live".')
+    return null
+  }
+  if (process.env.CONTEXT === 'production' && environment !== 'live') {
+    console.error('PayPal disabled: production deploys require PAYPAL_ENVIRONMENT=live.')
+    return null
+  }
   return {
     clientId,
     clientSecret,
@@ -168,6 +181,17 @@ function captureIdFromRefund(resource: PayPalRefundResource | undefined) {
   return resource?.supplementary_data?.related_ids?.capture_id ?? fromLink ?? null
 }
 
+/** Capture IDs a dispute event refers to (CUSTOMER.DISPUTE.* resources list the disputed transactions). */
+function captureIdsFromDispute(resource: PayPalDisputeResource | undefined) {
+  return (resource?.disputed_transactions ?? [])
+    .map((transaction) => transaction.seller_transaction_id)
+    .filter((id): id is string => Boolean(id))
+}
+
+/** Dispute outcomes mapped to what they mean for the bid. Unknown outcomes stay disputed. */
+const REFUND_OUTCOMES = new Set(['RESOLVED_BUYER_FAVOUR', 'RESOLVED_WITH_PAYOUT', 'ACCEPTED'])
+const RESTORE_OUTCOMES = new Set(['RESOLVED_SELLER_FAVOUR', 'CANCELED_BY_BUYER', 'DENIED'])
+
 async function recomputeListingTotals(tx: Tx, listingId: number) {
   await tx
     .update(listings)
@@ -195,7 +219,7 @@ async function applyPaidOrder(tx: Tx, order: PayPalOrder) {
     .where(and(eq(bids.id, bidId), eq(bids.paypalOrderId, order.id)))
     .for('update')
   if (!bid) return 'unknown-bid' as const
-  if (bid.status === 'paid' || bid.status === 'refunded') return 'already-applied' as const
+  if (bid.status !== 'pending' && bid.status !== 'failed') return 'already-applied' as const
 
   const orderAmount = dollarsToCents(unit.amount?.value)
   const captureAmount = dollarsToCents(capture.amount?.value)
@@ -222,13 +246,14 @@ async function applyPaidOrder(tx: Tx, order: PayPalOrder) {
   return 'applied' as const
 }
 
+/** Money returned to the buyer (refund, reversal, or buyer-won dispute). Removes the bid from rankings. */
 export async function applyRefund(tx: Tx, captureId: string) {
   const [bid] = await tx
     .select()
     .from(bids)
     .where(eq(bids.paypalCaptureId, captureId))
     .for('update')
-  if (!bid || bid.status !== 'paid') return
+  if (!bid || (bid.status !== 'paid' && bid.status !== 'disputed')) return
   await tx
     .update(bids)
     .set({ status: 'refunded', refundedAt: sql`now()` })
@@ -237,6 +262,23 @@ export async function applyRefund(tx: Tx, captureId: string) {
     .insert(platformLedger)
     .values({ bidId: bid.id, kind: 'refund', grossCents: -bid.amountCents, feeCents: -bid.feeCents })
     .onConflictDoNothing()
+  await recomputeListingTotals(tx, bid.listingId)
+}
+
+/** Moves a paid bid to disputed (out of rankings) or a disputed bid back to paid. */
+export async function applyDisputeStatus(
+  tx: Tx,
+  captureId: string,
+  from: 'paid' | 'disputed',
+  to: 'paid' | 'disputed',
+) {
+  const [bid] = await tx
+    .select()
+    .from(bids)
+    .where(eq(bids.paypalCaptureId, captureId))
+    .for('update')
+  if (!bid || bid.status !== from) return
+  await tx.update(bids).set({ status: to }).where(eq(bids.id, bid.id))
   await recomputeListingTotals(tx, bid.listingId)
 }
 
@@ -299,7 +341,9 @@ export async function processPayPalWebhook(request: Request) {
   const event = webhookEvent as {
     id?: string
     event_type?: string
-    resource?: PayPalRefundResource & { supplementary_data?: { related_ids?: PayPalRelatedIds } }
+    resource?: PayPalRefundResource & PayPalDisputeResource & {
+      supplementary_data?: { related_ids?: PayPalRelatedIds }
+    }
   }
   if (!event.id || !event.event_type) {
     throw new PayPalWebhookVerificationError('Invalid PayPal webhook event.')
@@ -309,6 +353,8 @@ export async function processPayPalWebhook(request: Request) {
   // failures must leave no event marker so PayPal can retry processing safely.
   let completedOrder: PayPalOrder | undefined
   let refundedCaptureId: string | null = null
+  // Each entry: a capture and the status change it causes.
+  let disputeChanges: Array<{ captureId: string; action: 'pause' | 'refund' | 'restore' }> = []
   if (event.event_type === 'PAYMENT.CAPTURE.COMPLETED') {
     const orderId = event.resource?.supplementary_data?.related_ids?.order_id
     if (!orderId) throw new PayPalWebhookVerificationError('PayPal event has no order ID.')
@@ -317,6 +363,23 @@ export async function processPayPalWebhook(request: Request) {
     // Only a completed refund changes rankings; PENDING refunds wait for the final event.
     if (event.resource?.status === 'COMPLETED') {
       refundedCaptureId = captureIdFromRefund(event.resource)
+    }
+  } else if (event.event_type === 'PAYMENT.CAPTURE.REVERSED') {
+    // A reversal (chargeback) returns the money: treat it like a refund. The resource is the capture.
+    if (event.resource?.id) refundedCaptureId = event.resource.id
+  } else if (event.event_type === 'CUSTOMER.DISPUTE.CREATED') {
+    // Open dispute: pull the bid out of rankings until PayPal resolves it.
+    disputeChanges = captureIdsFromDispute(event.resource).map((captureId) => ({ captureId, action: 'pause' as const }))
+  } else if (event.event_type === 'CUSTOMER.DISPUTE.RESOLVED') {
+    const outcome = event.resource?.dispute_outcome?.outcome_code ?? ''
+    const captureIds = captureIdsFromDispute(event.resource)
+    if (REFUND_OUTCOMES.has(outcome)) {
+      disputeChanges = captureIds.map((captureId) => ({ captureId, action: 'refund' as const }))
+    } else if (RESTORE_OUTCOMES.has(outcome)) {
+      disputeChanges = captureIds.map((captureId) => ({ captureId, action: 'restore' as const }))
+    } else {
+      // Unknown outcome: keep the bid paused and let an admin review it.
+      console.error('PayPal dispute resolved with unrecognized outcome', outcome)
     }
   }
 
@@ -332,6 +395,15 @@ export async function processPayPalWebhook(request: Request) {
       await applyPaidOrder(tx, completedOrder)
     } else if (refundedCaptureId) {
       await applyRefund(tx, refundedCaptureId)
+    }
+    for (const change of disputeChanges) {
+      if (change.action === 'pause') {
+        await applyDisputeStatus(tx, change.captureId, 'paid', 'disputed')
+      } else if (change.action === 'restore') {
+        await applyDisputeStatus(tx, change.captureId, 'disputed', 'paid')
+      } else {
+        await applyRefund(tx, change.captureId)
+      }
     }
   })
 }

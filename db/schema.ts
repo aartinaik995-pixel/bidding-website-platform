@@ -51,7 +51,7 @@ export const bids = pgTable('bids', {
   feeCents: integer('fee_cents').notNull(),
   totalChargeCents: integer('total_charge_cents').notNull(),
   currency: text().notNull().default('usd'),
-  /** pending | paid | failed | refunded */
+  /** pending | paid | failed | refunded | disputed */
   status: text().notNull().default('pending'),
   paypalOrderId: text('paypal_order_id'),
   paypalCaptureId: text('paypal_capture_id'),
@@ -68,7 +68,7 @@ export const bids = pgTable('bids', {
   index('bids_payment_intent_idx').on(t.stripePaymentIntentId),
   index('bids_listing_status_idx').on(t.listingId, t.status),
   index('bids_bidder_idx').on(t.bidderId),
-  check('bids_status_check', sql`${t.status} in ('pending', 'paid', 'failed', 'refunded')`),
+  check('bids_status_check', sql`${t.status} in ('pending', 'paid', 'failed', 'refunded', 'disputed')`),
   check('bids_amount_check', sql`${t.amountCents} > 0 and ${t.feeCents} >= 0`),
 ])
 

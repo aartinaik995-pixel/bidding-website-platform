@@ -65,7 +65,7 @@ function DashboardPage() {
   const { user, listings, bids } = Route.useLoaderData()
   const paid = bids.filter((bid) => bid.status === 'paid')
   const receipts = bids.filter(
-    (bid) => bid.status === 'paid' || bid.status === 'refunded',
+    (bid) => bid.status === 'paid' || bid.status === 'refunded' || bid.status === 'disputed',
   )
   const ranks = listings.map((l) => l.rank).filter((rank) => rank > 0)
 

@@ -13,6 +13,10 @@ const bidStyles: Record<BidStatus, { label: string; className: string }> = {
   },
   failed: { label: 'Not completed', className: 'text-muted-foreground' },
   refunded: { label: 'Refunded', className: 'text-muted-foreground' },
+  disputed: {
+    label: 'Disputed',
+    className: 'border-primary/40 bg-primary/10 text-foreground',
+  },
 }
 
 const listingStyles: Record<

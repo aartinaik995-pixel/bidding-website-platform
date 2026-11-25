@@ -27,7 +27,8 @@ vi.mock('../../db/index.js', async () => {
 const { db } = await import('../../db/index.js')
 const { loadLeaderboardData, loadListingPage } =
   await import('./listings.server')
-const { processPayPalWebhook, reconcileBid } = await import('./payments.server')
+const { paymentsConfigured, processPayPalWebhook, reconcileBid } =
+  await import('./payments.server')
 const { feeBreakdown } = await import('./platform')
 
 type PayPalOrderFixture = ReturnType<typeof paypalOrder>
@@ -407,5 +408,140 @@ describe('PayPal webhook endpoint', () => {
     expect((await post(event)).status).toBe(200)
     expect((await post(event)).status).toBe(200)
     expect((await state()).bid.status).toBe('paid')
+  })
+})
+
+describe('reversals and disputes', () => {
+  function disputeEvent(type: string, resource: Record<string, unknown> = {}) {
+    return {
+      id: `WH-${++seq}`,
+      event_type: type,
+      resource: { disputed_transactions: [{ seller_transaction_id: 'CAP1' }], ...resource },
+    }
+  }
+
+  it('removes a reversed (charged back) payment from rankings and records a refund', async () => {
+    await processPayPalWebhook(webhookRequest(captureCompletedEvent()))
+    await processPayPalWebhook(
+      webhookRequest({
+        id: `WH-${++seq}`,
+        event_type: 'PAYMENT.CAPTURE.REVERSED',
+        resource: { id: 'CAP1', status: 'REVERSED' },
+      }),
+    )
+    const { listing, bid, ledger } = await state()
+    expect(bid.status).toBe('refunded')
+    expect(listing.totalCents).toBe(0)
+    expect(ledger.map((row) => row.kind)).toEqual(['fee', 'refund'])
+  })
+
+  it('pauses a bid while a dispute is open and restores it when the seller wins', async () => {
+    await processPayPalWebhook(webhookRequest(captureCompletedEvent()))
+    await processPayPalWebhook(webhookRequest(disputeEvent('CUSTOMER.DISPUTE.CREATED')))
+
+    let state1 = await state()
+    expect(state1.bid.status).toBe('disputed')
+    expect(state1.listing.totalCents).toBe(0)
+    expect(state1.ledger).toHaveLength(1)
+
+    await processPayPalWebhook(
+      webhookRequest(
+        disputeEvent('CUSTOMER.DISPUTE.RESOLVED', {
+          dispute_outcome: { outcome_code: 'RESOLVED_SELLER_FAVOUR' },
+        }),
+      ),
+    )
+    state1 = await state()
+    expect(state1.bid.status).toBe('paid')
+    expect(state1.listing.totalCents).toBe(1000)
+    expect(state1.ledger).toHaveLength(1)
+  })
+
+  it('refunds a disputed bid when the buyer wins', async () => {
+    await processPayPalWebhook(webhookRequest(captureCompletedEvent()))
+    await processPayPalWebhook(webhookRequest(disputeEvent('CUSTOMER.DISPUTE.CREATED')))
+    await processPayPalWebhook(
+      webhookRequest(
+        disputeEvent('CUSTOMER.DISPUTE.RESOLVED', {
+          dispute_outcome: { outcome_code: 'RESOLVED_BUYER_FAVOUR' },
+        }),
+      ),
+    )
+    const { listing, bid, ledger } = await state()
+    expect(bid.status).toBe('refunded')
+    expect(listing.totalCents).toBe(0)
+    expect(ledger.map((row) => row.kind)).toEqual(['fee', 'refund'])
+  })
+
+  it('keeps a bid paused when the dispute outcome is unrecognized', async () => {
+    await processPayPalWebhook(webhookRequest(captureCompletedEvent()))
+    await processPayPalWebhook(webhookRequest(disputeEvent('CUSTOMER.DISPUTE.CREATED')))
+    await processPayPalWebhook(
+      webhookRequest(
+        disputeEvent('CUSTOMER.DISPUTE.RESOLVED', {
+          dispute_outcome: { outcome_code: 'SOMETHING_NEW' },
+        }),
+      ),
+    )
+    expect((await state()).bid.status).toBe('disputed')
+  })
+
+  it('does not reopen a bid that was already refunded when a late dispute arrives', async () => {
+    await processPayPalWebhook(webhookRequest(captureCompletedEvent()))
+    await processPayPalWebhook(
+      webhookRequest({
+        id: `WH-${++seq}`,
+        event_type: 'PAYMENT.CAPTURE.REVERSED',
+        resource: { id: 'CAP1', status: 'REVERSED' },
+      }),
+    )
+    await processPayPalWebhook(webhookRequest(disputeEvent('CUSTOMER.DISPUTE.CREATED')))
+    expect((await state()).bid.status).toBe('refunded')
+  })
+})
+
+describe('PayPal configuration', () => {
+  const keys = ['PAYPAL_ENVIRONMENT', 'CONTEXT'] as const
+
+  function withEnv(values: Partial<Record<(typeof keys)[number], string | undefined>>, run: () => void) {
+    const saved = Object.fromEntries(keys.map((key) => [key, process.env[key]]))
+    try {
+      for (const key of keys) {
+        if (key in values) {
+          if (values[key] === undefined) delete process.env[key]
+          else process.env[key] = values[key]
+        }
+      }
+      run()
+    } finally {
+      for (const key of keys) {
+        if (saved[key] === undefined) delete process.env[key]
+        else process.env[key] = saved[key]
+      }
+    }
+  }
+
+  it('stays disabled when PAYPAL_ENVIRONMENT is not set (no implicit sandbox)', () => {
+    withEnv({ PAYPAL_ENVIRONMENT: undefined }, () => {
+      expect(paymentsConfigured()).toBe(false)
+    })
+  })
+
+  it('rejects an unknown environment value', () => {
+    withEnv({ PAYPAL_ENVIRONMENT: 'prod' }, () => {
+      expect(paymentsConfigured()).toBe(false)
+    })
+  })
+
+  it('requires live credentials on production deploys', () => {
+    withEnv({ PAYPAL_ENVIRONMENT: 'sandbox', CONTEXT: 'production' }, () => {
+      expect(paymentsConfigured()).toBe(false)
+    })
+    withEnv({ PAYPAL_ENVIRONMENT: 'live', CONTEXT: 'production' }, () => {
+      expect(paymentsConfigured()).toBe(true)
+    })
+    withEnv({ PAYPAL_ENVIRONMENT: 'sandbox', CONTEXT: 'deploy-preview' }, () => {
+      expect(paymentsConfigured()).toBe(true)
+    })
   })
 })
