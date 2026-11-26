@@ -73,8 +73,7 @@ function AdminPage() {
             Platform dashboard
           </h1>
           <p className="mt-3 max-w-xl text-muted-foreground">
-            Manage live listings, review payment status and track platform-fee
-            revenue. Paid figures come from server-verified payments.
+            Manage live listings and review the platform-fee ledger. No payments are connected yet.
           </p>
         </div>
         <Button asChild variant="outline">

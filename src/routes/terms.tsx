@@ -11,7 +11,7 @@ const sections: PolicySection[] = [
   {
     title: "Using BidMySite",
     paragraphs: [
-      "BidMySite provides public website listings and a leaderboard ranked by verified bid totals. You must use an account for submissions and bidding, provide accurate information, and use only payment methods you are authorized to use.",
+      "BidMySite provides public website listings and a leaderboard. Bidding is not open yet. You must use an account for submissions, provide accurate information, and follow these terms.",
       "You are responsible for activity on your account and for keeping its sign-in credentials secure.",
     ],
   },

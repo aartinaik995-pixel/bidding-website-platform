@@ -11,7 +11,7 @@ import '../styles.css'
 
 const siteName = 'BidMySite — Bid your website to the top'
 const siteDescription =
-  'Submit your website and place bids to climb a public, live leaderboard. The highest bidders get the top spots.'
+  'Submit your website to a public leaderboard. Bidding is not open yet.'
 
 export const Route = createRootRoute({
   head: () => ({

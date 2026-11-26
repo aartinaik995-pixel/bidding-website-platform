@@ -28,23 +28,23 @@ const faqs = [
   },
   {
     q: "When does my bid count?",
-    a: "Only after the configured payment provider confirms payment directly to our server. Abandoned, failed or refunded payments never change the rankings. If checkout is unavailable, no bid is accepted.",
+    a: "Only after a payment provider is connected and confirms payment directly to our server. Abandoned, failed or refunded payments never change the rankings. Until then, no bid is accepted.",
   },
   {
     q: "What does the platform fee cover?",
-    a: `A ${feePercentLabel()} fee is added on top of each bid at checkout to run BidMySite. Your full bid amount counts toward your rank — the fee does not.`,
+    a: `A ${feePercentLabel()} fee will be added on top of each bid once bidding opens, to run BidMySite. Your full bid amount will count toward your rank — the fee will not.`,
   },
   {
     q: "Can I bid on someone else’s website?",
-    a: "Yes. Anyone with an account can bid on any listed website, including to help a site they like climb.",
+    a: "Not yet. Bidding is not open. When it opens, it will require an account and a verified payment.",
   },
   {
     q: "What websites are allowed?",
-    a: "Listings are published immediately after submission. Illegal content, malware, adult content, impersonation and abusive submissions may be removed; paid bids on a removed listing can be refunded in full.",
+    a: "Listings are published immediately after submission. Illegal content, malware, adult content, impersonation and abusive submissions may be removed; refunds are not available until a payment provider is connected.",
   },
   {
     q: "Are bids refundable?",
-    a: "Bids are final once confirmed, except when the platform removes a listing or approves another refund. Full refunds are returned to the original payment method; refunded bids no longer affect rankings.",
+    a: "No refunds are available yet, because no payment provider is connected. Refund terms will be published on the Refund Policy page before any payment is taken.",
   },
 ];
 
@@ -56,8 +56,7 @@ function HowItWorksPage() {
           How BidMySite works
         </h1>
         <p className="mt-3 text-lg text-muted-foreground">
-          A simple, open auction for attention. Pay to rank higher — and see
-          exactly where every cent goes.
+          A public leaderboard for websites. Bidding is not open yet. When it opens, you will see exactly where every cent goes.
         </p>
       </div>
 

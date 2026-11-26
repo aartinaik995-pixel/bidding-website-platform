@@ -11,14 +11,14 @@ const sections: PolicySection[] = [
   {
     title: "Information the service uses",
     paragraphs: [
-      "BidMySite stores account identifiers, email addresses, display names, submitted website URLs and descriptions, bid amounts, payment status, timestamps, and payment-provider identifiers needed to operate accounts, listings, receipts, rankings, and refunds.",
+      "BidMySite stores account identifiers, email addresses, display names, submitted website URLs and descriptions, timestamps, and the records needed to operate accounts and listings.",
       "Display names and submitted listing details are shown publicly. Verified bid amounts, bidder display names, and bid dates are also shown on the site. Do not use information in a public display name that you do not want published.",
     ],
   },
   {
     title: "How information is used",
     paragraphs: [
-      "Information is used to provide sign-in, persist listings and bids, calculate rankings and platform fees, show account receipts, prevent abuse, and process or reconcile refunds.",
+      "Information is used to provide sign-in, store listings, prevent abuse and run the platform. Bidding, payments and refunds are not active yet.",
       "Authentication is provided through Netlify Identity and application records are stored in the configured Netlify database. No payment provider is connected at this time, so the application does not process payments.",
     ],
   },

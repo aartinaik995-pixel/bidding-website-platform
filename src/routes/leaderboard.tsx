@@ -112,9 +112,9 @@ function LeaderboardPage() {
           <div className="rounded-2xl border bg-card p-5 text-sm">
             <h2 className="font-bold">Ranking rules</h2>
             <ul className="mt-3 space-y-2 text-muted-foreground">
-              <li>Only payments confirmed by the payment provider count.</li>
-              <li>Your full bid amount is added to your website's total.</li>
-              <li>A {feePercentLabel()} platform fee is added at checkout.</li>
+              <li>Only payments confirmed by a connected payment provider will count. None are connected yet.</li>
+              <li>Once bidding opens, the full bid amount will be added to the website's total.</li>
+              <li>A {feePercentLabel()} platform fee will be shown before any payment.</li>
               <li>Refunded or failed payments never affect rankings.</li>
             </ul>
           </div>

@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button'
 import {
   formatMoney,
   hostnameOf,
-  PLATFORM,
   timeAgo,
   type RankedListing,
 } from '@/lib/platform'
@@ -140,7 +139,7 @@ export function EmptyLeaderboard({ compact = false }: { compact?: boolean }) {
                 <p className="font-semibold text-muted-foreground">Unclaimed</p>
                 <p className="text-sm text-muted-foreground/80">
                   {i === 0
-                    ? 'The top spot is waiting for its first bid'
+                    ? 'The top spot is open'
                     : 'Open position'}
                 </p>
               </div>
@@ -151,11 +150,7 @@ export function EmptyLeaderboard({ compact = false }: { compact?: boolean }) {
       </ol>
       <div className="flex flex-col items-start justify-between gap-4 border-t bg-secondary/60 px-4 py-5 sm:flex-row sm:items-center sm:px-5">
         <p className="text-sm text-muted-foreground">
-          No paid bids yet. A bid of{' '}
-          <span className="tabular font-semibold text-foreground">
-            {formatMoney(PLATFORM.minBidCents)}
-          </span>{' '}
-          would take the #1 spot.
+          Bidding is not open yet.
         </p>
         <Button asChild size="sm">
           <Link to="/submit">

@@ -33,13 +33,13 @@ const steps = [
   },
   {
     icon: Gavel,
-    title: 'Place a paid bid',
-    body: `Bid from ${formatMoney(PLATFORM.minBidCents)}. Every bid adds to your site's total — the higher the total, the higher the rank.`,
+    title: 'Bidding (not open yet)',
+    body: 'Bidding opens after a payment provider is connected and verified. A platform fee is shown before any payment.',
   },
   {
     icon: TrendingUp,
-    title: 'Climb the leaderboard',
-    body: 'Rankings update the moment a payment is verified. Anyone can outbid you, and you can bid again.',
+    title: 'Rank on the leaderboard',
+    body: 'Once bidding opens, rankings will use only verified payments. Nothing is ranked on a promise.',
   },
 ]
 
@@ -57,7 +57,7 @@ const trust = [
   {
     icon: Receipt,
     title: 'Clear pricing',
-    body: `A flat ${feePercentLabel()} platform fee is shown before you pay. Your full bid counts toward your rank.`,
+    body: `A flat ${feePercentLabel()} platform fee will be shown before any payment, once bidding opens.`,
   },
 ]
 
@@ -78,10 +78,10 @@ function Home() {
           <div>
             <LiveIndicator label="Leaderboard is live" />
             <h1 className="mt-6 text-5xl leading-[0.95] font-extrabold sm:text-6xl lg:text-7xl">
-              Outbid the internet.
+              Put your website on the board.
               <br />
               <span className="relative inline-block text-primary">
-                Own the top spot.
+                Get listed in public.
                 <svg
                   aria-hidden
                   viewBox="0 0 300 12"
@@ -99,9 +99,7 @@ function Home() {
               </span>
             </h1>
             <p className="mt-7 max-w-xl text-lg text-muted-foreground">
-              BidMySite is a public leaderboard for websites. Submit yours,
-              place a paid bid and watch it climb. The more you bid, the higher
-              you rank.
+              BidMySite is a public leaderboard for websites. Submit yours to get a public listing page. Bidding is not open yet: it starts only after a payment provider is connected and its payments are verified.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button asChild size="lg" className="h-12 px-6 text-base">
@@ -219,7 +217,7 @@ function Home() {
       <section className="mx-auto max-w-content px-4 sm:px-6">
         <div className="rounded-3xl bg-ink px-6 py-12 text-ink-foreground sm:px-10 md:py-16">
           <h2 className="max-w-2xl text-3xl font-extrabold sm:text-4xl">
-            Real money. Real rankings. Nothing staged.
+            No payments are taken yet. Nothing is staged.
           </h2>
           <div className="mt-10 grid gap-8 md:grid-cols-3">
             {trust.map((item) => (

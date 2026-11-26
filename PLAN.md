@@ -56,6 +56,12 @@ The terms, privacy, and refund pages are operational drafts. The operator's lega
   - refunds: not available until a payment provider is connected
 - Revenue: gross bids, platform fees earned, refunds and net, by day and month, with CSV export.
 
+## Current verification status (November 26, 2026)
+
+- Passed locally: schema-to-migration column match on a fresh Postgres 16; migration refusal when Stripe data exists; URL validator and redirect assertions; esbuild parse of all changed TypeScript files; a TypeScript check with dependencies stubbed (no unused locals or undefined names).
+- Blocked in this environment: npm registry access (`pnpm install`, build, typecheck with real dependencies, ESLint, Prettier, vitest) and the Netlify deploy preview.
+- Not tested: browser flows, mobile layout, Netlify Identity sign-in and recovery, and the CSV export in a live environment.
+
 ## Milestone 7 — Hardening and launch (code added; production setup outstanding)
 
 - Database-backed rate limits protect listing submission and checkout creation. Listing URLs reject local/reserved hosts, credentials, and IP literals; outbound user links use `rel="nofollow ugc"`.

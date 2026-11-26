@@ -77,8 +77,7 @@ function DashboardPage() {
             Your dashboard
           </h1>
           <p className="mt-3 max-w-xl text-muted-foreground">
-            Track your websites, every bid you've placed and your payment
-            receipts in one place.
+            Track your websites from one place. Bidding is not open yet.
           </p>
         </div>
         <Button asChild>
@@ -193,7 +192,7 @@ function DashboardPage() {
             <EmptyPanel
               icon={Gavel}
               title="No bids placed"
-              body="Every bid you place — and whether its payment was confirmed — is listed here."
+              body="Bids you place will be listed here once bidding opens."
               action={
                 <Button asChild variant="outline">
                   <Link to="/leaderboard">Browse the leaderboard</Link>

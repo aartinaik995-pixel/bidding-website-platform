@@ -15,6 +15,14 @@ BidMySite is a public leaderboard where people submit their websites and place p
 
 No sample or invented bids are shown anywhere. Only server-verified payments affect rankings or revenue. No payment provider is connected. Stripe code has been removed, and bidding is disabled, so no bid can be placed. PayPal Checkout is planned but not implemented until its compliance and payment model are verified.
 
+## Current status (November 26, 2026)
+
+- Stripe has been removed from the code, the dependency and the database schema (migration `20261126100000_remove_stripe_references`).
+- Bidding is disabled. No payment provider is connected, and no bid or payment can be created.
+- Verified locally: migrations apply cleanly to a fresh Postgres 16 schema, the schema columns match `db/schema.ts`, URL validation and redirect helpers pass their checks, and all changed TypeScript files parse.
+- Not verified: `pnpm install --frozen-lockfile`, production build, TypeScript, ESLint, Prettier, the test suite, browser flows, mobile layout, and the Netlify deploy preview. Do not treat the site as production-ready until these pass.
+- The 10% platform fee is documented, but no money is collected.
+
 ## Tech
 
 TanStack Start (React 19, Vite), Tailwind CSS 4, shadcn/ui components, Netlify Identity, and Netlify Database (Postgres + Drizzle), deployed on Netlify.

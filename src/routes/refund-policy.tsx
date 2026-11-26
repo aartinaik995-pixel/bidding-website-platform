@@ -41,7 +41,7 @@ function RefundPolicyPage() {
   return (
     <PolicyPage
       title="Refund Policy"
-      description="How verified bid payments and full refunds are handled."
+      description="How refunds will be handled once payments are connected. No refunds are available yet."
       updated="October 23, 2026"
       sections={sections}
     />

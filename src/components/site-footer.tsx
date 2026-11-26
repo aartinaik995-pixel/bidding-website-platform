@@ -10,8 +10,7 @@ export function SiteFooter() {
         <div className="space-y-3">
           <BrandMark className="text-ink-foreground" />
           <p className="max-w-sm text-sm text-ink-foreground/70">
-            A public leaderboard where websites compete for attention. Every
-            ranking is backed by a verified payment. No bots, no invented bids.
+            A public leaderboard for websites. Bidding is not open yet. No bots, no invented bids.
           </p>
         </div>
         <div>
@@ -69,8 +68,7 @@ export function SiteFooter() {
       </div>
       <div className="border-t border-ink-foreground/10">
         <p className="mx-auto max-w-content px-4 py-5 text-xs text-ink-foreground/50 sm:px-6">
-          © {new Date().getFullYear()} BidMySite. Rankings reflect paid bids
-          only.
+          © {new Date().getFullYear()} BidMySite.
         </p>
       </div>
     </footer>

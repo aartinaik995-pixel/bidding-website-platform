@@ -24,7 +24,7 @@ export function RecentBidsFeed({
         <div className="mt-6 rounded-xl border border-dashed px-4 py-10 text-center">
           <p className="font-medium">No bids yet</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Bids appear here the moment their payment is confirmed.
+            Bids will appear here once bidding opens and a payment is verified.
           </p>
         </div>
       ) : (
