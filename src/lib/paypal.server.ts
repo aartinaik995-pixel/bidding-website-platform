@@ -1,62 +1,140 @@
-// PayPal payment scaffolding. Server-only.
+// PayPal REST client for the sandbox. Server-only.
 //
-// Real-money payments stay OFF until all of these are true:
-//   1. Legal review of terms, refund policy and privacy policy is complete.
-//   2. PayPal has approved the account for the auction model.
-//   3. Sandbox order create, capture and refund tests pass.
-//   4. PAYPAL_ENABLED is set to exactly "true" in the hosting environment.
-//
-// Until then every entry point below fails closed: no network calls are made,
-// and nothing is ranked or recorded as paid.
+// Every call goes through resolvePaypalConfig(), which refuses unless
+// PAYPAL_ENABLED="true", PAYPAL_ENVIRONMENT="sandbox" and both sandbox
+// credentials are set. Live PayPal is never reachable from this module.
+// Nothing here is called from the UI, so no money can move while the flag is off.
 
-export const PAYPAL_NOT_ENABLED_MESSAGE =
+import { resolvePaypalConfig } from "./payment-config";
+import { feeBreakdown } from "./platform";
+
+const SANDBOX_API = "https://api-m.sandbox.paypal.com";
+
+export const PAYMENTS_DISABLED_MESSAGE =
   "Bidding is not open yet, because payments are not enabled.";
 
-/** Fail-closed flag. Anything other than the exact string "true" means disabled. */
-export function paypalEnabled(): boolean {
-  return (
-    typeof process !== "undefined" && process.env.PAYPAL_ENABLED === "true"
-  );
-}
-
-export type PaymentStatus = {
-  enabled: boolean;
-  message: string;
-};
+export type PaymentStatus = { enabled: boolean; message: string };
 
 export function getPaymentStatus(): PaymentStatus {
-  const enabled = paypalEnabled();
-  return {
-    enabled,
-    message: enabled
-      ? "Payments are enabled."
-      : PAYPAL_NOT_ENABLED_MESSAGE,
-  };
+  const config = resolvePaypalConfig(process.env);
+  return config.enabled
+    ? { enabled: true, message: "Payments are enabled in the PayPal sandbox." }
+    : { enabled: false, message: PAYMENTS_DISABLED_MESSAGE };
 }
 
+function requireSandbox() {
+  const config = resolvePaypalConfig(process.env);
+  if (!config.enabled) throw new Error(`${PAYMENTS_DISABLED_MESSAGE} ${config.reason}`);
+  return config;
+}
+
+async function accessToken(clientId: string, clientSecret: string) {
+  const response = await fetch(`${SANDBOX_API}/v1/oauth2/token`, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: "grant_type=client_credentials",
+  });
+  if (!response.ok) throw new Error("PayPal authentication failed.");
+  const body = (await response.json()) as { access_token?: unknown };
+  if (typeof body.access_token !== "string")
+    throw new Error("PayPal authentication returned no token.");
+  return body.access_token;
+}
+
+function formatUsd(cents: number) {
+  return (cents / 100).toFixed(2);
+}
+
+export type CreatedOrder = { orderId: string; totalChargeCents: number };
+
 /**
- * Creates a PayPal order for a bid. Not implemented yet: it refuses while
- * payments are disabled, and the enabled path still needs the sandbox work
- * listed above before it can be written and tested.
+ * Creates a sandbox order for a bid. The bid amount plus the platform fee is
+ * charged. The caller stores a pending bid with this order id before returning.
  */
-export async function createBidOrder(_input: {
+export async function createBidOrder(input: {
   listingId: number;
   bidderId: string;
   amountCents: number;
-}): Promise<never> {
-  if (!paypalEnabled()) throw new Error(PAYPAL_NOT_ENABLED_MESSAGE);
-  throw new Error(
-    "PayPal order creation is not implemented yet. Sandbox testing is required first.",
-  );
+}): Promise<CreatedOrder> {
+  const config = requireSandbox();
+  const { totalChargeCents } = feeBreakdown(input.amountCents);
+  const token = await accessToken(config.clientId, config.clientSecret);
+  const response = await fetch(`${SANDBOX_API}/v2/checkout/orders`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+      "PayPal-Request-Id": crypto.randomUUID(),
+    },
+    body: JSON.stringify({
+      intent: "CAPTURE",
+      purchase_units: [
+        {
+          reference_id: `listing-${input.listingId}`,
+          custom_id: `${input.listingId}:${input.bidderId}`,
+          description: "Website bid",
+          amount: { currency_code: "USD", value: formatUsd(totalChargeCents) },
+        },
+      ],
+    }),
+  });
+  if (!response.ok) throw new Error("PayPal could not create the order.");
+  const body = (await response.json()) as { id?: unknown };
+  if (typeof body.id !== "string") throw new Error("PayPal returned no order id.");
+  return { orderId: body.id, totalChargeCents };
 }
 
+export type CapturedOrder = {
+  captureId: string;
+  amountCents: number;
+  customId: string | null;
+};
+
 /**
- * Captures a PayPal order and marks the bid paid. Ranking changes only after a
- * capture that PayPal confirms as COMPLETED. Same fail-closed rule as above.
+ * Captures a sandbox order. Only a COMPLETED capture counts; the caller must
+ * then check amountCents and customId against the pending bid before ranking.
  */
-export async function captureBidOrder(_orderId: string): Promise<never> {
-  if (!paypalEnabled()) throw new Error(PAYPAL_NOT_ENABLED_MESSAGE);
-  throw new Error(
-    "PayPal capture is not implemented yet. Sandbox testing is required first.",
+export async function captureBidOrder(orderId: string): Promise<CapturedOrder> {
+  const config = requireSandbox();
+  const token = await accessToken(config.clientId, config.clientSecret);
+  const response = await fetch(
+    `${SANDBOX_API}/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "PayPal-Request-Id": crypto.randomUUID(),
+      },
+    },
   );
+  if (!response.ok) throw new Error("PayPal could not capture the order.");
+  const body = (await response.json()) as {
+    status?: unknown;
+    purchase_units?: {
+      custom_id?: unknown;
+      payments?: {
+        captures?: {
+          id?: unknown;
+          status?: unknown;
+          amount?: { value?: unknown };
+        }[];
+      };
+    }[];
+  };
+  const unit = body.purchase_units?.[0];
+  const capture = unit?.payments?.captures?.[0];
+  if (body.status !== "COMPLETED" || capture?.status !== "COMPLETED")
+    throw new Error("The PayPal payment is not completed.");
+  if (typeof capture.id !== "string" || typeof capture.amount?.value !== "string")
+    throw new Error("PayPal returned an incomplete capture.");
+  const amountCents = Math.round(Number(capture.amount.value) * 100);
+  return {
+    captureId: capture.id,
+    amountCents,
+    customId: typeof unit?.custom_id === "string" ? unit.custom_id : null,
+  };
 }
