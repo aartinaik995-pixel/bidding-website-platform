@@ -81,7 +81,7 @@ function ListingPage() {
             submittedLabel={`Listed ${timeAgo(listing.createdAt)}`}
           />
 
-          <dl className="grid grid-cols-3 gap-3">
+          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {[
               ["Total bid", formatMoney(listing.totalCents)],
               ["Highest bid", formatMoney(listing.highestBidCents)],
