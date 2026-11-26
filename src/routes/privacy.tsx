@@ -19,7 +19,7 @@ const sections: PolicySection[] = [
     title: "How information is used",
     paragraphs: [
       "Information is used to provide sign-in, persist listings and bids, calculate rankings and platform fees, show account receipts, prevent abuse, and process or reconcile refunds.",
-      "Authentication is provided through Netlify Identity and application records are stored in the configured Netlify database. When Stripe checkout is configured, Stripe handles the payment flow. The application stores payment identifiers and status, not card numbers.",
+      "Authentication is provided through Netlify Identity and application records are stored in the configured Netlify database. No payment provider is connected at this time, so the application does not process payments.",
     ],
   },
   {
@@ -31,7 +31,7 @@ const sections: PolicySection[] = [
   {
     title: "Cookies and service providers",
     paragraphs: [
-      "Sign-in relies on session handling provided by Netlify Identity. Stripe may use its own pages and technologies when a configured checkout is opened. This repository does not include an analytics integration.",
+      "Sign-in relies on session handling provided by Netlify Identity. This repository does not include an analytics integration.",
     ],
   },
   {

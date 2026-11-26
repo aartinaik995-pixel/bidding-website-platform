@@ -9,18 +9,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ListingHeader } from "@/components/listing-view";
-import { getPaymentsReady, getSessionUser } from "@/lib/account.functions";
+import { getSessionUser } from "@/lib/account.functions";
 import { submitListing } from "@/lib/listings.functions";
 import { feePercentLabel, formatMoney, PLATFORM } from "@/lib/platform";
 
 export const Route = createFileRoute("/submit")({
   head: () => ({ meta: [{ title: "Submit your website · BidMySite" }] }),
   loader: async () => {
-    const [user, paymentsReady] = await Promise.all([
-      getSessionUser(),
-      getPaymentsReady(),
-    ]);
-    return { user, paymentsReady };
+    const user = await getSessionUser();
+    return { user };
   },
   component: SubmitPage,
 });
@@ -30,7 +27,7 @@ type State = "idle" | "pending" | "success" | "error";
 const DESCRIPTION_MAX = 280;
 
 function SubmitPage() {
-  const { user, paymentsReady } = Route.useLoaderData();
+  const { user } = Route.useLoaderData();
   const router = useRouter();
   const save = useServerFn(submitListing);
   const [state, setState] = useState<State>("idle");
@@ -229,9 +226,7 @@ function SubmitPage() {
                 Submitting is free. Bids start at{" "}
                 {formatMoney(PLATFORM.minBidCents)} plus a {feePercentLabel()}{" "}
                 platform fee.{" "}
-                {paymentsReady
-                  ? "Stripe Checkout is configured for secure payment."
-                  : "Checkout is unavailable until payment credentials are configured; no payment can be taken yet."}
+                Bidding is not available yet, because no payment provider is connected.
               </p>
             </fieldset>
           </form>

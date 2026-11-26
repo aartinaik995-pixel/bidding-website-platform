@@ -22,16 +22,11 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BidStatusBadge, ListingStatusBadge } from "@/components/status-badges";
 import { getSessionUser } from "@/lib/account.functions";
-import {
-  getAdminOverview,
-  refundBid,
-  setListingStatus,
-} from "@/lib/admin.functions";
+import { getAdminOverview, setListingStatus } from "@/lib/admin.functions";
 import {
   formatMoney,
   hostnameOf,
   timeAgo,
-  type BidStatus,
   type ListingStatus,
 } from "@/lib/platform";
 
@@ -65,7 +60,7 @@ function AdminPage() {
     );
   }
 
-  const { revenue, listings, bids, daily, monthly, paymentsReady } = data;
+  const { revenue, listings, bids, daily, monthly } = data;
 
   return (
     <div className="mx-auto max-w-content px-4 py-12 sm:px-6">
@@ -89,17 +84,15 @@ function AdminPage() {
         </Button>
       </div>
 
-      {!paymentsReady && (
-        <Alert className="mt-8">
-          <AlertTriangle />
-          <AlertTitle>Payments are not connected</AlertTitle>
-          <AlertDescription>
-            Stripe Checkout stays disabled until STRIPE_SECRET_KEY and
-            STRIPE_WEBHOOK_SECRET are configured in the hosting environment.
-            Secret values are never shown here.
-          </AlertDescription>
-        </Alert>
-      )}
+      <Alert className="mt-8">
+        <AlertTriangle />
+        <AlertTitle>Payments are not connected</AlertTitle>
+        <AlertDescription>
+          Bidding stays disabled until a payment provider is connected and its
+          payments are verified on the server. No payment credentials are shown
+          here.
+        </AlertDescription>
+      </Alert>
 
       <dl className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
@@ -182,7 +175,6 @@ function AdminPage() {
                         <ListingActions
                           id={listing.id}
                           status={listing.status}
-                          hasPaidBids={listing.totalCents > 0}
                         />
                       </TableCell>
                     </TableRow>
@@ -195,7 +187,7 @@ function AdminPage() {
 
         <TabsContent value="bids" className="mt-4">
           {bids.length === 0 ? (
-            <Empty>No checkouts have been started yet.</Empty>
+            <Empty>No bids have been placed yet.</Empty>
           ) : (
             <div className="overflow-x-auto rounded-2xl border bg-card">
               <Table>
@@ -208,7 +200,6 @@ function AdminPage() {
                     <TableHead className="text-right">Bid</TableHead>
                     <TableHead className="text-right">Fee</TableHead>
                     <TableHead className="text-right">Charged</TableHead>
-                    <TableHead />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -232,13 +223,6 @@ function AdminPage() {
                       </TableCell>
                       <TableCell className="tabular text-right">
                         {formatMoney(bid.totalChargeCents)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <RefundButton
-                          id={bid.id}
-                          status={bid.status}
-                          canRefund={bid.hasPaymentIntent}
-                        />
                       </TableCell>
                     </TableRow>
                   ))}
@@ -271,11 +255,9 @@ function Empty({ children }: { children: React.ReactNode }) {
 function ListingActions({
   id,
   status,
-  hasPaidBids,
 }: {
   id: string;
   status: ListingStatus;
-  hasPaidBids: boolean;
 }) {
   const router = useRouter();
   const update = useServerFn(setListingStatus);
@@ -288,9 +270,7 @@ function ListingActions({
       toast.success(
         next === "approved"
           ? "Listing restored and bidding is open."
-          : hasPaidBids
-            ? "Listing removed. Refund its paid bids from the Bids tab."
-            : "Listing removed.",
+          : "Listing removed from the leaderboard.",
       );
       await router.invalidate();
     } catch {
@@ -318,54 +298,6 @@ function ListingActions({
         </Button>
       )}
     </div>
-  );
-}
-
-function RefundButton({
-  id,
-  status,
-  canRefund,
-}: {
-  id: string;
-  status: BidStatus;
-  canRefund: boolean;
-}) {
-  const router = useRouter();
-  const refund = useServerFn(refundBid);
-  const [pending, setPending] = useState(false);
-  if (status !== "paid" || !canRefund) return null;
-
-  async function run() {
-    if (
-      !window.confirm(
-        "Refund this bid in full through Stripe? It will be removed from the rankings.",
-      )
-    )
-      return;
-    setPending(true);
-    try {
-      const result = await refund({ data: { bidId: Number(id) } });
-      toast.success(
-        result.status === "refunded"
-          ? "Refunded. The bid no longer counts toward rankings."
-          : "Refund submitted. The bid is removed once Stripe confirms it.",
-      );
-      await router.invalidate();
-    } catch (error) {
-      toast.error(
-        error instanceof Error && error.message
-          ? error.message
-          : "Refund failed.",
-      );
-    } finally {
-      setPending(false);
-    }
-  }
-
-  return (
-    <Button size="sm" variant="outline" disabled={pending} onClick={run}>
-      {pending ? "Refunding…" : "Refund"}
-    </Button>
   );
 }
 

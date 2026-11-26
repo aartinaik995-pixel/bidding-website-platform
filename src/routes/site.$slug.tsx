@@ -1,7 +1,5 @@
-import { useEffect } from "react";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { ArrowLeft, Clock, EyeOff } from "lucide-react";
-import { toast } from "sonner";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -19,10 +17,6 @@ import { formatMoney, timeAgo } from "@/lib/platform";
 import { useLiveRefresh } from "@/lib/use-live-refresh";
 
 export const Route = createFileRoute("/site/$slug")({
-  validateSearch: (
-    search: Record<string, unknown>,
-  ): { checkout?: "cancelled" } =>
-    search.checkout === "cancelled" ? { checkout: "cancelled" } : {},
   loader: async ({ params }) => {
     const page = await getListingPage({ data: { slug: params.slug } });
     if (!page) throw notFound();
@@ -43,17 +37,8 @@ export const Route = createFileRoute("/site/$slug")({
 });
 
 function ListingPage() {
-  const { listing, bids, leaderTotalCents, signedIn, isOwner, paymentsReady } =
-    Route.useLoaderData();
-  const { checkout } = Route.useSearch();
-  const navigate = Route.useNavigate();
+  const { listing, bids, leaderTotalCents, isOwner } = Route.useLoaderData();
   useLiveRefresh();
-
-  useEffect(() => {
-    if (checkout !== "cancelled") return;
-    toast("Checkout cancelled. You were not charged.");
-    void navigate({ search: {}, replace: true });
-  }, [checkout, navigate]);
 
   return (
     <div className="mx-auto max-w-content px-4 py-10 sm:px-6">
@@ -150,13 +135,9 @@ function ListingPage() {
 
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <BidPanel
-            listingId={listing.id}
             currentTotalCents={listing.totalCents}
             leaderTotalCents={leaderTotalCents}
             isLeader={listing.rank === 1}
-            open={listing.status === "approved"}
-            signedIn={signedIn}
-            paymentsReady={paymentsReady}
           />
         </aside>
       </div>

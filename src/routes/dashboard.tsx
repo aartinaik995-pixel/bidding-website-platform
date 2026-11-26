@@ -280,17 +280,7 @@ function DashboardPage() {
                         {formatMoney(bid.totalChargeCents)}
                       </TableCell>
                       <TableCell>
-                        {bid.status === 'refunded' ? (
-                          <BidStatusBadge status="refunded" />
-                        ) : (
-                          <Link
-                            to="/checkout/success"
-                            search={{ bid: Number(bid.id) }}
-                            className="text-sm font-medium text-primary hover:underline"
-                          >
-                            Receipt
-                          </Link>
-                        )}
+                        <BidStatusBadge status={bid.status} />
                       </TableCell>
                     </TableRow>
                   ))}

@@ -32,7 +32,7 @@ const sections: PolicySection[] = [
   {
     title: "Payments and refunds",
     paragraphs: [
-      "The application currently contains a Stripe Checkout integration. Checkout is available only when the required server-side configuration is present; no Razorpay or PayPal integration is included. The provider name or payment status must not be treated as active unless the application reports checkout as configured.",
+      "No payment provider is currently connected. Bidding is disabled, and no payment or bid counts as active until a provider is connected and its payments are verified on the server.",
       "Confirmed bids are generally final. Full refunds may be issued under the Refund Policy, including when the platform removes a listing. A refunded bid is removed from rankings after the payment provider confirms the refund.",
     ],
   },

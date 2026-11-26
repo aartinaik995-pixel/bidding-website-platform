@@ -10,7 +10,7 @@ This document describes the project for developers and AI agents working on this
 
 ### Non-negotiable product rule
 
-Never show invented bids, sample listings or a "payment succeeded" state that isn't backed by a server-verified payment (Stripe webhook → `bids.status = 'paid'`). Empty states are intentional. Don't add demo data to make screens look full.
+Never show invented bids, sample listings or a "payment succeeded" state that isn't backed by a server-verified payment (a verified payment-provider webhook → `bids.status = 'paid'`; none is connected yet). Empty states are intentional. Don't add demo data to make screens look full.
 
 ### App map
 

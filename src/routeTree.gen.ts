@@ -19,8 +19,6 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RefundPolicyRouteImport } from './routes/refund-policy'
 import { Route as SubmitRouteImport } from './routes/submit'
 import { Route as TermsRouteImport } from './routes/terms'
-import { Route as ApiStripeWebhookRouteImport } from './routes/api.stripe-webhook'
-import { Route as CheckoutSuccessRouteImport } from './routes/checkout.success'
 import { Route as SiteSlugRouteImport } from './routes/site.$slug'
 import { Route as ApiAdminRevenueCsvRouteImport } from './routes/api.admin.revenue-csv'
 
@@ -74,43 +72,6 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiStripeWebhookRoute = ApiStripeWebhookRouteImport.update({
-  id: '/api/stripe-webhook',
-  path: '/api/stripe-webhook',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CheckoutSuccessRoute = CheckoutSuccessRouteImport.update({
-  id: '/checkout/success',
-  path: '/checkout/success',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SiteSlugRoute = SiteSlugRouteImport.update({
-  id: '/site/$slug',
-  path: '/site/$slug',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAdminRevenueCsvRoute = ApiAdminRevenueCsvRouteImport.update({
-  id: '/api/admin/revenue-csv',
-  path: '/api/admin/revenue-csv',
-  getParentRoute: () => rootRouteImport,
-} as any)
-
-export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
-  '/dashboard': typeof DashboardRoute
-  '/how-it-works': typeof HowItWorksRoute
-  '/leaderboard': typeof LeaderboardRoute
-  '/login': typeof LoginRoute
-  '/privacy': typeof PrivacyRoute
-  '/refund-policy': typeof RefundPolicyRoute
-  '/submit': typeof SubmitRoute
-  '/terms': typeof TermsRoute
-  '/api/stripe-webhook': typeof ApiStripeWebhookRoute
-  '/checkout/success': typeof CheckoutSuccessRoute
-  '/site/$slug': typeof SiteSlugRoute
-  '/api/admin/revenue-csv': typeof ApiAdminRevenueCsvRoute
-}
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
@@ -122,8 +83,6 @@ export interface FileRoutesByTo {
   '/refund-policy': typeof RefundPolicyRoute
   '/submit': typeof SubmitRoute
   '/terms': typeof TermsRoute
-  '/api/stripe-webhook': typeof ApiStripeWebhookRoute
-  '/checkout/success': typeof CheckoutSuccessRoute
   '/site/$slug': typeof SiteSlugRoute
   '/api/admin/revenue-csv': typeof ApiAdminRevenueCsvRoute
 }
@@ -139,8 +98,6 @@ export interface FileRoutesById {
   '/refund-policy': typeof RefundPolicyRoute
   '/submit': typeof SubmitRoute
   '/terms': typeof TermsRoute
-  '/api/stripe-webhook': typeof ApiStripeWebhookRoute
-  '/checkout/success': typeof CheckoutSuccessRoute
   '/site/$slug': typeof SiteSlugRoute
   '/api/admin/revenue-csv': typeof ApiAdminRevenueCsvRoute
 }
@@ -157,8 +114,6 @@ export interface FileRouteTypes {
     | '/refund-policy'
     | '/submit'
     | '/terms'
-    | '/api/stripe-webhook'
-    | '/checkout/success'
     | '/site/$slug'
     | '/api/admin/revenue-csv'
   fileRoutesByTo: FileRoutesByTo
@@ -173,8 +128,6 @@ export interface FileRouteTypes {
     | '/refund-policy'
     | '/submit'
     | '/terms'
-    | '/api/stripe-webhook'
-    | '/checkout/success'
     | '/site/$slug'
     | '/api/admin/revenue-csv'
   id:
@@ -189,8 +142,6 @@ export interface FileRouteTypes {
     | '/refund-policy'
     | '/submit'
     | '/terms'
-    | '/api/stripe-webhook'
-    | '/checkout/success'
     | '/site/$slug'
     | '/api/admin/revenue-csv'
   fileRoutesById: FileRoutesById
@@ -206,8 +157,6 @@ export interface RootRouteChildren {
   RefundPolicyRoute: typeof RefundPolicyRoute
   SubmitRoute: typeof SubmitRoute
   TermsRoute: typeof TermsRoute
-  ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
-  CheckoutSuccessRoute: typeof CheckoutSuccessRoute
   SiteSlugRoute: typeof SiteSlugRoute
   ApiAdminRevenueCsvRoute: typeof ApiAdminRevenueCsvRoute
 }
@@ -284,20 +233,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/stripe-webhook': {
-      id: '/api/stripe-webhook'
-      path: '/api/stripe-webhook'
-      fullPath: '/api/stripe-webhook'
-      preLoaderRoute: typeof ApiStripeWebhookRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/checkout/success': {
-      id: '/checkout/success'
-      path: '/checkout/success'
-      fullPath: '/checkout/success'
-      preLoaderRoute: typeof CheckoutSuccessRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/site/$slug': {
       id: '/site/$slug'
       path: '/site/$slug'
@@ -326,8 +261,6 @@ const rootRouteChildren: RootRouteChildren = {
   RefundPolicyRoute: RefundPolicyRoute,
   SubmitRoute: SubmitRoute,
   TermsRoute: TermsRoute,
-  ApiStripeWebhookRoute: ApiStripeWebhookRoute,
-  CheckoutSuccessRoute: CheckoutSuccessRoute,
   SiteSlugRoute: SiteSlugRoute,
   ApiAdminRevenueCsvRoute: ApiAdminRevenueCsvRoute,
 }
