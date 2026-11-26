@@ -110,3 +110,9 @@ export function timeAgo(iso: string) {
   }
   return `${value} year${value === 1 ? '' : 's'} ago`
 }
+
+/** Operator details shown on the legal pages. Only values supplied by the operator. */
+export const OPERATOR = {
+  name: "Aarti Naik",
+  contactEmail: "rajpurohitlalit2810@gmail.com",
+} as const;

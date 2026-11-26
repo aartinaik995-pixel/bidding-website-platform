@@ -25,7 +25,7 @@ const sections: PolicySection[] = [
   {
     title: "Retention and account controls",
     paragraphs: [
-      "The application currently has no self-service account deletion or data-export feature. Account, listing, bid, and ledger records may be retained while needed to operate the service and maintain accurate payment and ranking records. The operator must define and publish the applicable retention period.",
+      "The application currently has no self-service account deletion or data-export feature. Account, listing and bid records may be kept while needed to operate the service. A retention period has not been published yet.",
     ],
   },
   {
@@ -37,7 +37,7 @@ const sections: PolicySection[] = [
   {
     title: "Privacy requests",
     paragraphs: [
-      "The platform operator’s privacy contact and legal identity have not been provided in this repository. Add a verified contact method before launch so users can submit access, correction, or deletion requests.",
+      "Send access, correction or deletion requests to rajpurohitlalit2810@gmail.com. The operator is Aarti Naik.",
     ],
   },
 ];

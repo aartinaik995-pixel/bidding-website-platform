@@ -26,7 +26,7 @@ const sections: PolicySection[] = [
   {
     title: "Requesting a refund",
     paragraphs: [
-      "A platform administrator can review a refund request and issue an eligible full refund. The repository does not provide a public support email or contact form; the operator must add a verified support contact before launch.",
+      "A platform administrator can review a refund request and issue an eligible full refund. Send refund and support requests to rajpurohitlalit2810@gmail.com.",
     ],
   },
   {

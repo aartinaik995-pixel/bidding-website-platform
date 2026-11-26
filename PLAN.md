@@ -60,6 +60,7 @@ The terms, privacy, and refund pages are operational drafts. The operator's lega
 
 - Passed locally: schema-to-migration column match on a fresh Postgres 16; migration refusal when Stripe data exists; URL validator and redirect assertions; esbuild parse of all changed TypeScript files; a TypeScript check with dependencies stubbed (no unused locals or undefined names).
 - Blocked in this environment: npm registry access (`pnpm install`, build, typecheck with real dependencies, ESLint, Prettier, vitest) and the Netlify deploy preview.
+- Legal pages name the operator (Aarti Naik) and the support and privacy contact (rajpurohitlalit2810@gmail.com). Governing region and business registration are not yet stated.
 - Not tested: browser flows, mobile layout, Netlify Identity sign-in and recovery, and the CSV export in a live environment.
 
 ## Milestone 7 — Hardening and launch (code added; production setup outstanding)
