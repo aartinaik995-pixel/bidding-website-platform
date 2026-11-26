@@ -30,7 +30,7 @@ The terms, privacy, and refund pages are operational drafts. The operator's lega
 - Tables:
   - `users`: mirrors Identity users.
   - `listings`: URL, title, description, owner, and a status of approved or removed. The migration publishes legacy pending listings.
-  - `bids`: listing, bidder, amount, fee, status (pending, paid, failed or refunded), Stripe session and payment IDs.
+  - `bids`: listing, bidder, amount, fee, status (pending, paid, failed or refunded). Stripe ID columns were dropped by migration `20261126100000_remove_stripe_references`.
   - `platform_ledger`: one row per fee or refund, for revenue reporting.
 - Submissions are authenticated, validated, rate-limited, and persisted as live listings.
 - Netlify Forms import is not part of the current repository; no Forms inbox was accessible during this audit.
@@ -41,7 +41,7 @@ The terms, privacy, and refund pages are operational drafts. The operator's lega
 - Bidding is disabled: the Place a bid control cannot submit anything, and no server function creates a bid.
 - PayPal Checkout is the planned provider. It stays out of the repository until PayPal's acceptable-use policy and the payment model are verified for this business.
 - Webhook verification for PayPal payments and refunds is required before any bid counts toward rankings.
-- Existing `bids` columns named `stripe_*` and the `stripe_events` table remain in the database. Removing them needs a migration.
+- Migration `20261126100000_remove_stripe_references` drops the `stripe_*` columns, their indexes and the `stripe_events` table. It fails on purpose if any bid still holds a Stripe ID. Not yet applied to a deployed Netlify Database; verified only against a local Postgres 16.
 
 ## Milestone 5 — Live leaderboard ✅ (email notifications remain)
 

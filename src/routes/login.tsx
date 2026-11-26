@@ -107,7 +107,7 @@ function LoginPage() {
       <p className="mt-2 text-muted-foreground">
         {mode === 'reset'
           ? "Enter your email and we'll send you a link to set a new password."
-          : 'An account lets you submit websites, place bids and keep your receipts.'}
+          : 'An account lets you submit websites and manage them from your dashboard.'}
       </p>
 
       {mode !== 'reset' && (
@@ -237,10 +237,13 @@ function LoginPage() {
       )}
 
       <p className="mt-6 text-center text-xs text-muted-foreground">
-        By continuing you agree to bid only with payment methods you're
-        authorized to use. See{' '}
-        <Link to="/how-it-works" className="underline">
-          how it works
+        By continuing you agree to our{' '}
+        <Link to="/terms" className="underline">
+          Terms
+        </Link>{' '}
+        and{' '}
+        <Link to="/privacy" className="underline">
+          Privacy Policy
         </Link>
         .
       </p>

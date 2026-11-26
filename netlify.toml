@@ -5,3 +5,14 @@
   command = "npm run dev"
   targetPort = 3000
   port = 8888
+
+# Baseline security headers for every response. No Content-Security-Policy is set
+# yet: the Netlify Identity widget and Google Fonts need an explicit policy that
+# has to be tested in a browser before it is enforced.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=(), payment=()"
