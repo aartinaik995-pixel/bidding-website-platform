@@ -268,7 +268,7 @@ function ListingActions({
       await update({ data: { listingId: Number(id), status: next } });
       toast.success(
         next === "approved"
-          ? "Listing restored and bidding is open."
+          ? "Listing restored to the leaderboard."
           : "Listing removed from the leaderboard.",
       );
       await router.invalidate();
