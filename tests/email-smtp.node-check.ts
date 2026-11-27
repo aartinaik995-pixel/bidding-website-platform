@@ -60,7 +60,7 @@ function fakeSmtp(password: string, received: Received[]) {
   return server
 }
 
-const ENV_KEYS = ['GMAIL_USER', 'GMAIL_APP_PASSWORD'] as const
+const ENV_KEYS = ['EMAIL_ENABLED', 'GMAIL_USER', 'GMAIL_APP_PASSWORD'] as const
 const saved: Record<string, string | undefined> = {}
 let server: Server
 let port = 0
@@ -88,8 +88,10 @@ const plainOpen = () => {
 }
 
 describe('gmailConfig', () => {
-  it('is null unless both values are set', () => {
+  it('is null unless EMAIL_ENABLED is true and both values are set', () => {
     assert.equal(gmailConfig({}), null)
+    assert.equal(gmailConfig({ GMAIL_USER: 'a@gmail.com', GMAIL_APP_PASSWORD: 'x' }), null)
+    assert.equal(gmailConfig({ EMAIL_ENABLED: 'TRUE', GMAIL_USER: 'a@gmail.com', GMAIL_APP_PASSWORD: 'x' }), null)
     assert.equal(gmailConfig({ GMAIL_USER: 'a@gmail.com' }), null)
     assert.equal(gmailConfig({ GMAIL_APP_PASSWORD: 'x' }), null)
     assert.equal(gmailConfig({ GMAIL_USER: '  ', GMAIL_APP_PASSWORD: 'x' }), null)
@@ -97,7 +99,7 @@ describe('gmailConfig', () => {
 
   it('removes spaces Google adds to app passwords', () => {
     assert.deepEqual(
-      gmailConfig({ GMAIL_USER: 'me@gmail.com', GMAIL_APP_PASSWORD: 'abcd efgh ijkl mnop' }),
+      gmailConfig({ EMAIL_ENABLED: 'true', GMAIL_USER: 'me@gmail.com', GMAIL_APP_PASSWORD: 'abcd efgh ijkl mnop' }),
       { user: 'me@gmail.com', pass: 'abcdefghijklmnop' },
     )
   })
@@ -116,6 +118,7 @@ describe('buildMessage', () => {
 
 describe('sendEmail', () => {
   it('is skipped and makes no connection when not configured', async () => {
+    delete process.env.EMAIL_ENABLED
     delete process.env.GMAIL_USER
     delete process.env.GMAIL_APP_PASSWORD
     const before = openCalls
@@ -125,6 +128,7 @@ describe('sendEmail', () => {
   })
 
   it('rejects an invalid recipient before connecting', async () => {
+    process.env.EMAIL_ENABLED = 'true'
     process.env.GMAIL_USER = 'sender@gmail.com'
     process.env.GMAIL_APP_PASSWORD = 'test-app-password-1234'
     const before = openCalls
@@ -136,6 +140,7 @@ describe('sendEmail', () => {
   })
 
   it('reports sent only after the server accepts the message', async () => {
+    process.env.EMAIL_ENABLED = 'true'
     process.env.GMAIL_USER = 'sender@gmail.com'
     process.env.GMAIL_APP_PASSWORD = 'test-app-password-1234'
     const result = await sendEmail(
@@ -154,6 +159,7 @@ describe('sendEmail', () => {
   })
 
   it('fails without claiming success when the login is rejected', async () => {
+    process.env.EMAIL_ENABLED = 'true'
     process.env.GMAIL_USER = 'sender@gmail.com'
     process.env.GMAIL_APP_PASSWORD = 'wrong-password'
     const before = received.length

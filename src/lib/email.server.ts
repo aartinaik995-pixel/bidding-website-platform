@@ -1,7 +1,7 @@
 // Gmail SMTP sender. Server-only.
 //
 // Uses Node's built-in TLS socket, so it needs no npm package. Nothing is sent
-// unless GMAIL_USER and GMAIL_APP_PASSWORD are both set. The connection always
+// unless EMAIL_ENABLED="true" and GMAIL_USER and GMAIL_APP_PASSWORD are set. The connection always
 // uses TLS with certificate verification to smtp.gmail.com:465. The result is
 // "sent" only after Gmail accepts the message with a 250 reply.
 //
@@ -28,6 +28,8 @@ export type GmailConfig = { user: string; pass: string };
 export function gmailConfig(
   env: Record<string, string | undefined>,
 ): GmailConfig | null {
+  // Email stays off until EMAIL_ENABLED is set to "true", even with credentials present.
+  if (env.EMAIL_ENABLED !== "true") return null;
   const user = env.GMAIL_USER?.trim() ?? "";
   // Google shows app passwords with spaces; the spaces are not part of the password.
   const pass = (env.GMAIL_APP_PASSWORD ?? "").replace(/\s+/g, "");

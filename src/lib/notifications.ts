@@ -1,6 +1,6 @@
 // Email notification templates and the send gate. Pure: nothing is sent from
 // this file. Delivery goes through Gmail SMTP (src/lib/email.server.ts) and needs
-// GMAIL_USER and GMAIL_APP_PASSWORD set in the hosting environment.
+// EMAIL_ENABLED="true" plus GMAIL_USER and GMAIL_APP_PASSWORD in the hosting environment.
 
 import { formatMoney, PLATFORM } from "./platform";
 
@@ -9,7 +9,11 @@ export type EmailMessage = { subject: string; text: string };
 export function emailDeliveryConfigured(
   env: Record<string, string | undefined>,
 ): boolean {
-  return Boolean(env.GMAIL_USER?.trim() && env.GMAIL_APP_PASSWORD?.trim());
+  return Boolean(
+    env.EMAIL_ENABLED === "true" &&
+      env.GMAIL_USER?.trim() &&
+      env.GMAIL_APP_PASSWORD?.trim(),
+  );
 }
 
 export function renderBidReceipt(input: {
