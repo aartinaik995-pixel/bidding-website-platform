@@ -8,330 +8,330 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from "./routes/__root";
-import { Route as IndexRouteImport } from "./routes/index";
-import { Route as AdminRouteImport } from "./routes/admin";
-import { Route as DashboardRouteImport } from "./routes/dashboard";
-import { Route as HowItWorksRouteImport } from "./routes/how-it-works";
-import { Route as LeaderboardRouteImport } from "./routes/leaderboard";
-import { Route as LoginRouteImport } from "./routes/login";
-import { Route as PrivacyRouteImport } from "./routes/privacy";
-import { Route as RefundPolicyRouteImport } from "./routes/refund-policy";
-import { Route as SubmitRouteImport } from "./routes/submit";
-import { Route as TermsRouteImport } from "./routes/terms";
-import { Route as ApiPaypalCancelRouteImport } from "./routes/api.paypal-cancel";
-import { Route as ApiPaypalReturnRouteImport } from "./routes/api.paypal-return";
-import { Route as ApiPaypalWebhookRouteImport } from "./routes/api.paypal-webhook";
-import { Route as SiteSlugRouteImport } from "./routes/site.$slug";
-import { Route as ApiAdminRevenueCsvRouteImport } from "./routes/api.admin.revenue-csv";
+import { Route as rootRouteImport } from './routes/__root'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as HowItWorksRouteImport } from './routes/how-it-works'
+import { Route as LeaderboardRouteImport } from './routes/leaderboard'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as RefundPolicyRouteImport } from './routes/refund-policy'
+import { Route as SubmitRouteImport } from './routes/submit'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as ApiPaypalCancelRouteImport } from './routes/api.paypal-cancel'
+import { Route as ApiPaypalReturnRouteImport } from './routes/api.paypal-return'
+import { Route as ApiPaypalWebhookRouteImport } from './routes/api.paypal-webhook'
+import { Route as SiteSlugRouteImport } from './routes/site.$slug'
+import { Route as ApiAdminRevenueCsvRouteImport } from './routes/api.admin.revenue-csv'
 
 const IndexRoute = IndexRouteImport.update({
-  id: "/",
-  path: "/",
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const AdminRoute = AdminRouteImport.update({
-  id: "/admin",
-  path: "/admin",
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
-  id: "/dashboard",
-  path: "/dashboard",
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const HowItWorksRoute = HowItWorksRouteImport.update({
-  id: "/how-it-works",
-  path: "/how-it-works",
+  id: '/how-it-works',
+  path: '/how-it-works',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const LeaderboardRoute = LeaderboardRouteImport.update({
-  id: "/leaderboard",
-  path: "/leaderboard",
+  id: '/leaderboard',
+  path: '/leaderboard',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const LoginRoute = LoginRouteImport.update({
-  id: "/login",
-  path: "/login",
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const PrivacyRoute = PrivacyRouteImport.update({
-  id: "/privacy",
-  path: "/privacy",
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const RefundPolicyRoute = RefundPolicyRouteImport.update({
-  id: "/refund-policy",
-  path: "/refund-policy",
+  id: '/refund-policy',
+  path: '/refund-policy',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const SubmitRoute = SubmitRouteImport.update({
-  id: "/submit",
-  path: "/submit",
+  id: '/submit',
+  path: '/submit',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const TermsRoute = TermsRouteImport.update({
-  id: "/terms",
-  path: "/terms",
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const ApiPaypalCancelRoute = ApiPaypalCancelRouteImport.update({
-  id: "/api/paypal-cancel",
-  path: "/api/paypal-cancel",
+  id: '/api/paypal-cancel',
+  path: '/api/paypal-cancel',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const ApiPaypalReturnRoute = ApiPaypalReturnRouteImport.update({
-  id: "/api/paypal-return",
-  path: "/api/paypal-return",
+  id: '/api/paypal-return',
+  path: '/api/paypal-return',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const ApiPaypalWebhookRoute = ApiPaypalWebhookRouteImport.update({
-  id: "/api/paypal-webhook",
-  path: "/api/paypal-webhook",
+  id: '/api/paypal-webhook',
+  path: '/api/paypal-webhook',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const SiteSlugRoute = SiteSlugRouteImport.update({
-  id: "/site/$slug",
-  path: "/site/$slug",
+  id: '/site/$slug',
+  path: '/site/$slug',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 const ApiAdminRevenueCsvRoute = ApiAdminRevenueCsvRouteImport.update({
-  id: "/api/admin/revenue-csv",
-  path: "/api/admin/revenue-csv",
+  id: '/api/admin/revenue-csv',
+  path: '/api/admin/revenue-csv',
   getParentRoute: () => rootRouteImport,
-} as any);
+} as any)
 
 export interface FileRoutesByFullPath {
-  "/": typeof IndexRoute;
-  "/admin": typeof AdminRoute;
-  "/dashboard": typeof DashboardRoute;
-  "/how-it-works": typeof HowItWorksRoute;
-  "/leaderboard": typeof LeaderboardRoute;
-  "/login": typeof LoginRoute;
-  "/privacy": typeof PrivacyRoute;
-  "/refund-policy": typeof RefundPolicyRoute;
-  "/submit": typeof SubmitRoute;
-  "/terms": typeof TermsRoute;
-  "/api/paypal-cancel": typeof ApiPaypalCancelRoute;
-  "/api/paypal-return": typeof ApiPaypalReturnRoute;
-  "/api/paypal-webhook": typeof ApiPaypalWebhookRoute;
-  "/site/$slug": typeof SiteSlugRoute;
-  "/api/admin/revenue-csv": typeof ApiAdminRevenueCsvRoute;
+  '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/dashboard': typeof DashboardRoute
+  '/how-it-works': typeof HowItWorksRoute
+  '/leaderboard': typeof LeaderboardRoute
+  '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/refund-policy': typeof RefundPolicyRoute
+  '/submit': typeof SubmitRoute
+  '/terms': typeof TermsRoute
+  '/api/paypal-cancel': typeof ApiPaypalCancelRoute
+  '/api/paypal-return': typeof ApiPaypalReturnRoute
+  '/api/paypal-webhook': typeof ApiPaypalWebhookRoute
+  '/site/$slug': typeof SiteSlugRoute
+  '/api/admin/revenue-csv': typeof ApiAdminRevenueCsvRoute
 }
 export interface FileRoutesByTo {
-  "/": typeof IndexRoute;
-  "/admin": typeof AdminRoute;
-  "/dashboard": typeof DashboardRoute;
-  "/how-it-works": typeof HowItWorksRoute;
-  "/leaderboard": typeof LeaderboardRoute;
-  "/login": typeof LoginRoute;
-  "/privacy": typeof PrivacyRoute;
-  "/refund-policy": typeof RefundPolicyRoute;
-  "/submit": typeof SubmitRoute;
-  "/terms": typeof TermsRoute;
-  "/api/paypal-cancel": typeof ApiPaypalCancelRoute;
-  "/api/paypal-return": typeof ApiPaypalReturnRoute;
-  "/api/paypal-webhook": typeof ApiPaypalWebhookRoute;
-  "/site/$slug": typeof SiteSlugRoute;
-  "/api/admin/revenue-csv": typeof ApiAdminRevenueCsvRoute;
+  '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/dashboard': typeof DashboardRoute
+  '/how-it-works': typeof HowItWorksRoute
+  '/leaderboard': typeof LeaderboardRoute
+  '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/refund-policy': typeof RefundPolicyRoute
+  '/submit': typeof SubmitRoute
+  '/terms': typeof TermsRoute
+  '/api/paypal-cancel': typeof ApiPaypalCancelRoute
+  '/api/paypal-return': typeof ApiPaypalReturnRoute
+  '/api/paypal-webhook': typeof ApiPaypalWebhookRoute
+  '/site/$slug': typeof SiteSlugRoute
+  '/api/admin/revenue-csv': typeof ApiAdminRevenueCsvRoute
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport;
-  "/": typeof IndexRoute;
-  "/admin": typeof AdminRoute;
-  "/dashboard": typeof DashboardRoute;
-  "/how-it-works": typeof HowItWorksRoute;
-  "/leaderboard": typeof LeaderboardRoute;
-  "/login": typeof LoginRoute;
-  "/privacy": typeof PrivacyRoute;
-  "/refund-policy": typeof RefundPolicyRoute;
-  "/submit": typeof SubmitRoute;
-  "/terms": typeof TermsRoute;
-  "/api/paypal-cancel": typeof ApiPaypalCancelRoute;
-  "/api/paypal-return": typeof ApiPaypalReturnRoute;
-  "/api/paypal-webhook": typeof ApiPaypalWebhookRoute;
-  "/site/$slug": typeof SiteSlugRoute;
-  "/api/admin/revenue-csv": typeof ApiAdminRevenueCsvRoute;
+  __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/dashboard': typeof DashboardRoute
+  '/how-it-works': typeof HowItWorksRoute
+  '/leaderboard': typeof LeaderboardRoute
+  '/login': typeof LoginRoute
+  '/privacy': typeof PrivacyRoute
+  '/refund-policy': typeof RefundPolicyRoute
+  '/submit': typeof SubmitRoute
+  '/terms': typeof TermsRoute
+  '/api/paypal-cancel': typeof ApiPaypalCancelRoute
+  '/api/paypal-return': typeof ApiPaypalReturnRoute
+  '/api/paypal-webhook': typeof ApiPaypalWebhookRoute
+  '/site/$slug': typeof SiteSlugRoute
+  '/api/admin/revenue-csv': typeof ApiAdminRevenueCsvRoute
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath;
+  fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | "/"
-    | "/admin"
-    | "/dashboard"
-    | "/how-it-works"
-    | "/leaderboard"
-    | "/login"
-    | "/privacy"
-    | "/refund-policy"
-    | "/submit"
-    | "/terms"
-    | "/api/paypal-cancel"
-    | "/api/paypal-return"
-    | "/api/paypal-webhook"
-    | "/site/$slug"
-    | "/api/admin/revenue-csv";
-  fileRoutesByTo: FileRoutesByTo;
+    | '/'
+    | '/admin'
+    | '/dashboard'
+    | '/how-it-works'
+    | '/leaderboard'
+    | '/login'
+    | '/privacy'
+    | '/refund-policy'
+    | '/submit'
+    | '/terms'
+    | '/api/paypal-cancel'
+    | '/api/paypal-return'
+    | '/api/paypal-webhook'
+    | '/site/$slug'
+    | '/api/admin/revenue-csv'
+  fileRoutesByTo: FileRoutesByTo
   to:
-    | "/"
-    | "/admin"
-    | "/dashboard"
-    | "/how-it-works"
-    | "/leaderboard"
-    | "/login"
-    | "/privacy"
-    | "/refund-policy"
-    | "/submit"
-    | "/terms"
-    | "/api/paypal-cancel"
-    | "/api/paypal-return"
-    | "/api/paypal-webhook"
-    | "/site/$slug"
-    | "/api/admin/revenue-csv";
+    | '/'
+    | '/admin'
+    | '/dashboard'
+    | '/how-it-works'
+    | '/leaderboard'
+    | '/login'
+    | '/privacy'
+    | '/refund-policy'
+    | '/submit'
+    | '/terms'
+    | '/api/paypal-cancel'
+    | '/api/paypal-return'
+    | '/api/paypal-webhook'
+    | '/site/$slug'
+    | '/api/admin/revenue-csv'
   id:
-    | "__root__"
-    | "/"
-    | "/admin"
-    | "/dashboard"
-    | "/how-it-works"
-    | "/leaderboard"
-    | "/login"
-    | "/privacy"
-    | "/refund-policy"
-    | "/submit"
-    | "/terms"
-    | "/api/paypal-cancel"
-    | "/api/paypal-return"
-    | "/api/paypal-webhook"
-    | "/site/$slug"
-    | "/api/admin/revenue-csv";
-  fileRoutesById: FileRoutesById;
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/dashboard'
+    | '/how-it-works'
+    | '/leaderboard'
+    | '/login'
+    | '/privacy'
+    | '/refund-policy'
+    | '/submit'
+    | '/terms'
+    | '/api/paypal-cancel'
+    | '/api/paypal-return'
+    | '/api/paypal-webhook'
+    | '/site/$slug'
+    | '/api/admin/revenue-csv'
+  fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute;
-  AdminRoute: typeof AdminRoute;
-  DashboardRoute: typeof DashboardRoute;
-  HowItWorksRoute: typeof HowItWorksRoute;
-  LeaderboardRoute: typeof LeaderboardRoute;
-  LoginRoute: typeof LoginRoute;
-  PrivacyRoute: typeof PrivacyRoute;
-  RefundPolicyRoute: typeof RefundPolicyRoute;
-  SubmitRoute: typeof SubmitRoute;
-  TermsRoute: typeof TermsRoute;
-  ApiPaypalCancelRoute: typeof ApiPaypalCancelRoute;
-  ApiPaypalReturnRoute: typeof ApiPaypalReturnRoute;
-  ApiPaypalWebhookRoute: typeof ApiPaypalWebhookRoute;
-  SiteSlugRoute: typeof SiteSlugRoute;
-  ApiAdminRevenueCsvRoute: typeof ApiAdminRevenueCsvRoute;
+  IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
+  DashboardRoute: typeof DashboardRoute
+  HowItWorksRoute: typeof HowItWorksRoute
+  LeaderboardRoute: typeof LeaderboardRoute
+  LoginRoute: typeof LoginRoute
+  PrivacyRoute: typeof PrivacyRoute
+  RefundPolicyRoute: typeof RefundPolicyRoute
+  SubmitRoute: typeof SubmitRoute
+  TermsRoute: typeof TermsRoute
+  ApiPaypalCancelRoute: typeof ApiPaypalCancelRoute
+  ApiPaypalReturnRoute: typeof ApiPaypalReturnRoute
+  ApiPaypalWebhookRoute: typeof ApiPaypalWebhookRoute
+  SiteSlugRoute: typeof SiteSlugRoute
+  ApiAdminRevenueCsvRoute: typeof ApiAdminRevenueCsvRoute
 }
 
-declare module "@tanstack/react-router" {
+declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    "/": {
-      id: "/";
-      path: "/";
-      fullPath: "/";
-      preLoaderRoute: typeof IndexRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/admin": {
-      id: "/admin";
-      path: "/admin";
-      fullPath: "/admin";
-      preLoaderRoute: typeof AdminRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/dashboard": {
-      id: "/dashboard";
-      path: "/dashboard";
-      fullPath: "/dashboard";
-      preLoaderRoute: typeof DashboardRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/how-it-works": {
-      id: "/how-it-works";
-      path: "/how-it-works";
-      fullPath: "/how-it-works";
-      preLoaderRoute: typeof HowItWorksRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/leaderboard": {
-      id: "/leaderboard";
-      path: "/leaderboard";
-      fullPath: "/leaderboard";
-      preLoaderRoute: typeof LeaderboardRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/login": {
-      id: "/login";
-      path: "/login";
-      fullPath: "/login";
-      preLoaderRoute: typeof LoginRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/privacy": {
-      id: "/privacy";
-      path: "/privacy";
-      fullPath: "/privacy";
-      preLoaderRoute: typeof PrivacyRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/refund-policy": {
-      id: "/refund-policy";
-      path: "/refund-policy";
-      fullPath: "/refund-policy";
-      preLoaderRoute: typeof RefundPolicyRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/submit": {
-      id: "/submit";
-      path: "/submit";
-      fullPath: "/submit";
-      preLoaderRoute: typeof SubmitRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/terms": {
-      id: "/terms";
-      path: "/terms";
-      fullPath: "/terms";
-      preLoaderRoute: typeof TermsRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/api/paypal-cancel": {
-      id: "/api/paypal-cancel";
-      path: "/api/paypal-cancel";
-      fullPath: "/api/paypal-cancel";
-      preLoaderRoute: typeof ApiPaypalCancelRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/api/paypal-return": {
-      id: "/api/paypal-return";
-      path: "/api/paypal-return";
-      fullPath: "/api/paypal-return";
-      preLoaderRoute: typeof ApiPaypalReturnRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/api/paypal-webhook": {
-      id: "/api/paypal-webhook";
-      path: "/api/paypal-webhook";
-      fullPath: "/api/paypal-webhook";
-      preLoaderRoute: typeof ApiPaypalWebhookRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/site/$slug": {
-      id: "/site/$slug";
-      path: "/site/$slug";
-      fullPath: "/site/$slug";
-      preLoaderRoute: typeof SiteSlugRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
-    "/api/admin/revenue-csv": {
-      id: "/api/admin/revenue-csv";
-      path: "/api/admin/revenue-csv";
-      fullPath: "/api/admin/revenue-csv";
-      preLoaderRoute: typeof ApiAdminRevenueCsvRouteImport;
-      parentRoute: typeof rootRouteImport;
-    };
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/how-it-works': {
+      id: '/how-it-works'
+      path: '/how-it-works'
+      fullPath: '/how-it-works'
+      preLoaderRoute: typeof HowItWorksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/leaderboard': {
+      id: '/leaderboard'
+      path: '/leaderboard'
+      fullPath: '/leaderboard'
+      preLoaderRoute: typeof LeaderboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/refund-policy': {
+      id: '/refund-policy'
+      path: '/refund-policy'
+      fullPath: '/refund-policy'
+      preLoaderRoute: typeof RefundPolicyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/submit': {
+      id: '/submit'
+      path: '/submit'
+      fullPath: '/submit'
+      preLoaderRoute: typeof SubmitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/paypal-cancel': {
+      id: '/api/paypal-cancel'
+      path: '/api/paypal-cancel'
+      fullPath: '/api/paypal-cancel'
+      preLoaderRoute: typeof ApiPaypalCancelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/paypal-return': {
+      id: '/api/paypal-return'
+      path: '/api/paypal-return'
+      fullPath: '/api/paypal-return'
+      preLoaderRoute: typeof ApiPaypalReturnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/paypal-webhook': {
+      id: '/api/paypal-webhook'
+      path: '/api/paypal-webhook'
+      fullPath: '/api/paypal-webhook'
+      preLoaderRoute: typeof ApiPaypalWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/site/$slug': {
+      id: '/site/$slug'
+      path: '/site/$slug'
+      fullPath: '/site/$slug'
+      preLoaderRoute: typeof SiteSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/revenue-csv': {
+      id: '/api/admin/revenue-csv'
+      path: '/api/admin/revenue-csv'
+      fullPath: '/api/admin/revenue-csv'
+      preLoaderRoute: typeof ApiAdminRevenueCsvRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -351,16 +351,16 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPaypalWebhookRoute: ApiPaypalWebhookRoute,
   SiteSlugRoute: SiteSlugRoute,
   ApiAdminRevenueCsvRoute: ApiAdminRevenueCsvRoute,
-};
+}
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>();
+  ._addFileTypes<FileRouteTypes>()
 
-import type { getRouter } from "./router.tsx";
-import type { createStart } from "@tanstack/react-start";
-declare module "@tanstack/react-start" {
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
   interface Register {
-    ssr: true;
-    router: Awaited<ReturnType<typeof getRouter>>;
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
   }
 }
