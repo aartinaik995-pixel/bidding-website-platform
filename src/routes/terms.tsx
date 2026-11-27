@@ -39,7 +39,7 @@ const sections: PolicySection[] = [
   {
     title: "Governing law and contact",
     paragraphs: [
-      "BidMySite is operated by Aarti Naik from India. These terms are governed by the laws of India, and disputes are subject to the jurisdiction of the courts of Telangana, India.",
+      "BidMySite is operated by Aarti Naik from Telangana, India. These terms are governed by the laws of India, and disputes are subject to the jurisdiction of the courts of Telangana, India.",
       "Send questions about these terms to rajpurohitlalit2810@gmail.com.",
     ],
   },

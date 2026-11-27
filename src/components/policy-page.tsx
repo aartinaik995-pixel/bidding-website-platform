@@ -40,8 +40,9 @@ export function PolicyPage({
           </a>
         </p>
         <p className="mt-2 text-muted-foreground">
-          Governing law is India (Telangana). Business registration and a
-          business address are not stated on these pages yet.
+          Business location: Telangana, India. Governing law is India. A street
+          address and business registration number are not stated on these
+          pages.
         </p>
       </div>
 
