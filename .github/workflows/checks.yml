@@ -1,0 +1,53 @@
+# Runs the project checks on GitHub's runners, which have npm access.
+# Secrets are not needed: no step calls PayPal, Gmail or Netlify.
+name: checks
+
+on:
+  pull_request:
+  push:
+    branches: [feature/remove-stripe-and-hardening]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Unit tests (Vitest)
+        run: pnpm test
+
+      - name: Node tests (payment, email, bid logic)
+        env:
+          ESBUILD: node_modules/.pnpm/node_modules/esbuild/bin/esbuild
+        run: pnpm test:node
+
+      - name: Production build (regenerates routeTree.gen.ts)
+        run: pnpm build
+
+      - name: Route tree must match the committed file
+        run: git diff --exit-code -- src/routeTree.gen.ts
