@@ -22,6 +22,14 @@ import { useLiveRefresh } from "@/lib/use-live-refresh";
 
 export const Route = createFileRoute("/")({
   loader: () => getHomeData({ data: { limit: PLATFORM.spotlightSize } }),
+  head: () => ({
+    meta: [
+      {
+        name: "google-site-verification",
+        content: "Pg2JdQ7tDUjRbuGi9VpDEU0s6_hwWTAD7unITIHdgCo",
+      },
+    ],
+  }),
   component: Home,
 });
 
