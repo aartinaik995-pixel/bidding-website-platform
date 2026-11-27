@@ -1,5 +1,7 @@
 # Runs the project checks on GitHub's runners, which have npm access.
 # Secrets are not needed: no step calls PayPal, Gmail or Netlify.
+# Generated output (regenerated route tree and Prettier formatting) is pushed to
+# the branch ci/generated-output so it can be reviewed and applied.
 name: checks
 
 on:
@@ -8,12 +10,27 @@ on:
     branches: [feature/remove-stripe-and-hardening]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   checks:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-only-password
+          POSTGRES_DB: bidtest
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      NETLIFY_DB_URL: postgres://postgres:ci-only-password@localhost:5432/bidtest
     steps:
       - uses: actions/checkout@v4
 
@@ -29,17 +46,18 @@ jobs:
       - name: Install (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
+      - name: Apply database migrations
+        if: always()
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client >/dev/null
+          for d in netlify/database/migrations/*/; do
+            PGPASSWORD=ci-only-password psql -h localhost -U postgres -d bidtest -v ON_ERROR_STOP=1 -q -f "$d/migration.sql"
+          done
+          PGPASSWORD=ci-only-password psql -h localhost -U postgres -d bidtest -v ON_ERROR_STOP=1 -q -f tests/db/settlement.test.sql
+
       - name: Production build (regenerates routeTree.gen.ts)
         if: always()
         run: pnpm build
-
-      - name: Save regenerated route tree
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: routeTree-gen
-          path: src/routeTree.gen.ts
-          if-no-files-found: ignore
 
       - name: Typecheck
         if: always()
@@ -53,21 +71,6 @@ jobs:
         if: always()
         run: pnpm format:check
 
-      - name: Prepare formatting patch (pinned Prettier output)
-        if: always()
-        run: |
-          pnpm format > /dev/null
-          git diff --binary > "$RUNNER_TEMP/format.patch"
-          echo "files changed by format: $(git diff --name-only | wc -l)"
-
-      - name: Save formatting patch
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: format-patch
-          path: ${{ runner.temp }}/format.patch
-          if-no-files-found: ignore
-
       - name: Unit tests (Vitest)
         if: always()
         run: pnpm test
@@ -79,5 +82,21 @@ jobs:
         run: pnpm test:node
 
       - name: Route tree must match the committed file
+        id: routetree
         if: always()
         run: git diff --exit-code -- src/routeTree.gen.ts
+
+      - name: Publish generated output to ci/generated-output
+        if: always()
+        run: |
+          pnpm format > /dev/null
+          git config user.name "github-actions"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B ci/generated-output
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No generated changes."
+          else
+            git commit -q -m "CI: regenerated route tree and Prettier output"
+            git push -q --force origin ci/generated-output
+          fi
