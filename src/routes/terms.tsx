@@ -37,6 +37,13 @@ const sections: PolicySection[] = [
     ],
   },
   {
+    title: "Governing law and contact",
+    paragraphs: [
+      "BidMySite is operated by Aarti Naik from India. These terms are governed by the laws of India, and disputes are subject to the jurisdiction of the courts of Telangana, India.",
+      "Send questions about these terms to rajpurohitlalit2810@gmail.com.",
+    ],
+  },
+  {
     title: "Availability and changes",
     paragraphs: [
       "We may suspend or change parts of the service for security, maintenance, or operational reasons. We may update these terms; the updated date above identifies the latest version shown here.",
