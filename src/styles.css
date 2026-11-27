@@ -1,6 +1,6 @@
-@import 'tailwindcss' source('../');
+@import "tailwindcss" source("../");
 
-@import 'tw-animate-css';
+@import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -13,13 +13,13 @@ body {
 
 code {
   font-family:
-    source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+    source-code-pro, Menlo, Monaco, Consolas, "Courier New", monospace;
 }
 
 :root {
-  --font-body: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
-  --font-heading: 'Bricolage Grotesque', ui-sans-serif, system-ui, sans-serif;
-  --font-numeric: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+  --font-body: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-numeric: "JetBrains Mono", ui-monospace, Menlo, monospace;
   --content-width: 76rem;
   --reading-width: 42rem;
   --background: oklch(0.985 0.004 85);

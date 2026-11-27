@@ -1,0 +1,11 @@
+# Generated or lock files that tools rewrite. Prettier must not reformat them.
+pnpm-lock.yaml
+src/routeTree.gen.ts
+netlify/database/migrations/**/snapshot.json
+netlify/database/migrations/**/migration.sql
+dist
+.netlify
+.output
+.vinxi
+coverage
+node_modules

@@ -1,47 +1,49 @@
-import { useMemo, useState } from 'react'
-import { createFileRoute, Link } from '@tanstack/react-router'
-import { Search } from 'lucide-react'
+import { useMemo, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Search } from "lucide-react";
 
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { LeaderboardList, LiveIndicator } from '@/components/leaderboard'
-import { RecentBidsFeed } from '@/components/recent-bids'
-import { getLeaderboardData } from '@/lib/listings.functions'
-import { feePercentLabel, formatMoney, PLATFORM } from '@/lib/platform'
-import { useLiveRefresh } from '@/lib/use-live-refresh'
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { LeaderboardList, LiveIndicator } from "@/components/leaderboard";
+import { RecentBidsFeed } from "@/components/recent-bids";
+import { getLeaderboardData } from "@/lib/listings.functions";
+import { feePercentLabel, formatMoney, PLATFORM } from "@/lib/platform";
+import { useLiveRefresh } from "@/lib/use-live-refresh";
 
-export const Route = createFileRoute('/leaderboard')({
-  head: () => ({ meta: [{ title: 'Live leaderboard · BidMySite' }] }),
+export const Route = createFileRoute("/leaderboard")({
+  head: () => ({ meta: [{ title: "Live leaderboard · BidMySite" }] }),
   loader: () => getLeaderboardData(),
   component: LeaderboardPage,
-})
+});
 
-type Sort = 'total' | 'highest' | 'newest'
+type Sort = "total" | "highest" | "newest";
 
 function LeaderboardPage() {
-  const { leaderboard, stats, recentBids } = Route.useLoaderData()
-  useLiveRefresh()
-  const [query, setQuery] = useState('')
-  const [sort, setSort] = useState<Sort>('total')
+  const { leaderboard, stats, recentBids } = Route.useLoaderData();
+  useLiveRefresh();
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<Sort>("total");
 
   const visible = useMemo(() => {
-    const q = query.trim().toLowerCase()
+    const q = query.trim().toLowerCase();
     const filtered = q
       ? leaderboard.filter(
           (l) =>
             l.title.toLowerCase().includes(q) ||
             l.url.toLowerCase().includes(q),
         )
-      : leaderboard
-    if (sort === 'highest')
-      return [...filtered].sort((a, b) => b.highestBidCents - a.highestBidCents)
-    if (sort === 'newest')
+      : leaderboard;
+    if (sort === "highest")
+      return [...filtered].sort(
+        (a, b) => b.highestBidCents - a.highestBidCents,
+      );
+    if (sort === "newest")
       return [...filtered].sort((a, b) =>
         b.createdAt.localeCompare(a.createdAt),
-      )
-    return filtered
-  }, [leaderboard, query, sort])
+      );
+    return filtered;
+  }, [leaderboard, query, sort]);
 
   return (
     <div className="mx-auto max-w-content px-4 py-12 sm:px-6">
@@ -63,10 +65,10 @@ function LeaderboardPage() {
 
       <dl className="mt-10 grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
-          ['Websites ranked', String(stats.listingCount)],
-          ['Verified bids', String(stats.bidCount)],
-          ['Total bid', formatMoney(stats.totalBidCents)],
-          ['Minimum bid', formatMoney(PLATFORM.minBidCents)],
+          ["Websites ranked", String(stats.listingCount)],
+          ["Verified bids", String(stats.bidCount)],
+          ["Total bid", formatMoney(stats.totalBidCents)],
+          ["Minimum bid", formatMoney(PLATFORM.minBidCents)],
         ].map(([label, value]) => (
           <div key={label} className="rounded-xl border bg-card p-4">
             <dt className="text-xs text-muted-foreground">{label}</dt>
@@ -99,7 +101,7 @@ function LeaderboardPage() {
           {leaderboard.length > 0 && visible.length === 0 ? (
             <div className="rounded-2xl border border-dashed px-6 py-12 text-center">
               <p className="font-medium">No websites match “{query}”</p>
-              <Button variant="link" onClick={() => setQuery('')}>
+              <Button variant="link" onClick={() => setQuery("")}>
                 Clear search
               </Button>
             </div>
@@ -112,14 +114,23 @@ function LeaderboardPage() {
           <div className="rounded-2xl border bg-card p-5 text-sm">
             <h2 className="font-bold">Ranking rules</h2>
             <ul className="mt-3 space-y-2 text-muted-foreground">
-              <li>Only payments confirmed by a connected payment provider will count. None are connected yet.</li>
-              <li>Once bidding opens, the full bid amount will be added to the website's total.</li>
-              <li>A {feePercentLabel()} platform fee will be shown before any payment.</li>
+              <li>
+                Only payments confirmed by a connected payment provider will
+                count. None are connected yet.
+              </li>
+              <li>
+                Once bidding opens, the full bid amount will be added to the
+                website's total.
+              </li>
+              <li>
+                A {feePercentLabel()} platform fee will be shown before any
+                payment.
+              </li>
               <li>Refunded or failed payments never affect rankings.</li>
             </ul>
           </div>
         </aside>
       </div>
     </div>
-  )
+  );
 }

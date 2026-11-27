@@ -1,12 +1,12 @@
-import { Link } from '@tanstack/react-router'
-import { Activity } from 'lucide-react'
+import { Link } from "@tanstack/react-router";
+import { Activity } from "lucide-react";
 
-import { formatMoney, timeAgo, type Bid, type Listing } from '@/lib/platform'
+import { formatMoney, timeAgo, type Bid, type Listing } from "@/lib/platform";
 
 export function RecentBidsFeed({
   bids,
 }: {
-  bids: (Bid & { listing?: Listing })[]
+  bids: (Bid & { listing?: Listing })[];
 }) {
   return (
     <section
@@ -36,7 +36,7 @@ export function RecentBidsFeed({
             >
               <div className="min-w-0">
                 <p className="truncate text-sm">
-                  <span className="font-medium">{bid.bidderName}</span> bid on{' '}
+                  <span className="font-medium">{bid.bidderName}</span> bid on{" "}
                   {bid.listing ? (
                     <Link
                       to="/site/$slug"
@@ -46,7 +46,7 @@ export function RecentBidsFeed({
                       {bid.listing.title}
                     </Link>
                   ) : (
-                    'a listing'
+                    "a listing"
                   )}
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -61,5 +61,5 @@ export function RecentBidsFeed({
         </ul>
       )}
     </section>
-  )
+  );
 }

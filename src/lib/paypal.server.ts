@@ -24,7 +24,8 @@ export function getPaymentStatus(): PaymentStatus {
 
 function requireSandbox() {
   const config = resolvePaypalConfig(process.env);
-  if (!config.enabled) throw new Error(`${PAYMENTS_DISABLED_MESSAGE} ${config.reason}`);
+  if (!config.enabled)
+    throw new Error(`${PAYMENTS_DISABLED_MESSAGE} ${config.reason}`);
   return config;
 }
 
@@ -103,7 +104,8 @@ export async function createBidOrder(input: {
     id?: unknown;
     links?: { rel?: unknown; href?: unknown }[];
   };
-  if (typeof body.id !== "string") throw new Error("PayPal returned no order id.");
+  if (typeof body.id !== "string")
+    throw new Error("PayPal returned no order id.");
   const approve = body.links?.find(
     (link) => link.rel === "payer-action" || link.rel === "approve",
   );
@@ -154,7 +156,10 @@ export async function captureBidOrder(orderId: string): Promise<CapturedOrder> {
   const capture = unit?.payments?.captures?.[0];
   if (body.status !== "COMPLETED" || capture?.status !== "COMPLETED")
     throw new Error("The PayPal payment is not completed.");
-  if (typeof capture.id !== "string" || typeof capture.amount?.value !== "string")
+  if (
+    typeof capture.id !== "string" ||
+    typeof capture.amount?.value !== "string"
+  )
     throw new Error("PayPal returned an incomplete capture.");
   const amountCents = Math.round(Number(capture.amount.value) * 100);
   return {
@@ -176,19 +181,25 @@ export async function verifyWebhookSignature(
   const webhookId = process.env.PAYPAL_WEBHOOK_ID?.trim();
   if (!webhookId) throw new Error("PAYPAL_WEBHOOK_ID is not configured.");
   const token = await accessToken(config.clientId, config.clientSecret);
-  const response = await fetch(`${SANDBOX_API}/v1/notifications/verify-webhook-signature`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      auth_algo: headers.get("paypal-auth-algo"),
-      cert_url: headers.get("paypal-cert-url"),
-      transmission_id: headers.get("paypal-transmission-id"),
-      transmission_sig: headers.get("paypal-transmission-sig"),
-      transmission_time: headers.get("paypal-transmission-time"),
-      webhook_id: webhookId,
-      webhook_event: JSON.parse(rawBody) as unknown,
-    }),
-  });
+  const response = await fetch(
+    `${SANDBOX_API}/v1/notifications/verify-webhook-signature`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        auth_algo: headers.get("paypal-auth-algo"),
+        cert_url: headers.get("paypal-cert-url"),
+        transmission_id: headers.get("paypal-transmission-id"),
+        transmission_sig: headers.get("paypal-transmission-sig"),
+        transmission_time: headers.get("paypal-transmission-time"),
+        webhook_id: webhookId,
+        webhook_event: JSON.parse(rawBody) as unknown,
+      }),
+    },
+  );
   if (!response.ok) return false;
   const body = (await response.json()) as { verification_status?: unknown };
   return body.verification_status === "SUCCESS";

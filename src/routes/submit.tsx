@@ -90,7 +90,8 @@ function SubmitPage() {
               Your website is published
             </h2>
             <p className="mt-2 text-muted-foreground">
-              Your public listing is live. It has no bids yet, because bidding is not open. You can share its page now.
+              Your public listing is live. It has no bids yet, because bidding
+              is not open. You can share its page now.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               {savedSlug ? (
@@ -120,7 +121,8 @@ function SubmitPage() {
             <LogIn className="size-10 text-primary" />
             <h2 className="mt-4 text-2xl font-bold">Sign in to submit</h2>
             <p className="mt-2 text-muted-foreground">
-              Listings belong to an account so you can manage them from your dashboard. It's free and takes a minute.
+              Listings belong to an account so you can manage them from your
+              dashboard. It's free and takes a minute.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <Button asChild>
@@ -222,8 +224,8 @@ function SubmitPage() {
               <p className="text-xs text-muted-foreground">
                 Submitting is free. Bids start at{" "}
                 {formatMoney(PLATFORM.minBidCents)} plus a {feePercentLabel()}{" "}
-                platform fee.{" "}
-                Bidding is not available yet, because no payment provider is connected.
+                platform fee. Bidding is not available yet, because no payment
+                provider is connected.
               </p>
             </fieldset>
           </form>

@@ -78,7 +78,8 @@ function AdminPage() {
             Platform dashboard
           </h1>
           <p className="mt-3 max-w-xl text-muted-foreground">
-            Manage live listings and review the platform-fee ledger. No payments are connected yet.
+            Manage live listings and review the platform-fee ledger. No payments
+            are connected yet.
           </p>
         </div>
         <Button asChild variant="outline">
@@ -230,7 +231,10 @@ function AdminPage() {
                         {formatMoney(bid.totalChargeCents)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <RefundButton bidId={Number(bid.id)} status={bid.status} />
+                        <RefundButton
+                          bidId={Number(bid.id)}
+                          status={bid.status}
+                        />
                       </TableCell>
                     </TableRow>
                   ))}
@@ -260,13 +264,7 @@ function Empty({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ListingActions({
-  id,
-  status,
-}: {
-  id: string;
-  status: ListingStatus;
-}) {
+function ListingActions({ id, status }: { id: string; status: ListingStatus }) {
   const router = useRouter();
   const update = useServerFn(setListingStatus);
   const [pending, setPending] = useState(false);
@@ -309,13 +307,7 @@ function ListingActions({
   );
 }
 
-function RefundButton({
-  bidId,
-  status,
-}: {
-  bidId: number;
-  status: BidStatus;
-}) {
+function RefundButton({ bidId, status }: { bidId: number; status: BidStatus }) {
   const router = useRouter();
   const refund = useServerFn(refundBid);
   const [pending, setPending] = useState(false);
@@ -323,7 +315,8 @@ function RefundButton({
   if (status !== "paid") return null;
 
   async function onRefund() {
-    if (!window.confirm("Refund this bid in full? It will leave the ranking.")) return;
+    if (!window.confirm("Refund this bid in full? It will leave the ranking."))
+      return;
     setPending(true);
     try {
       await refund({ data: { bidId } });

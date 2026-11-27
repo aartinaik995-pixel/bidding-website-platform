@@ -14,14 +14,14 @@ Never show invented bids, sample listings or a "payment succeeded" state that is
 
 ### App map
 
-| Route | File | Notes |
-| --- | --- | --- |
-| `/` | `src/routes/index.tsx` | Hero, top 3, how it works, top 10, recent bids |
-| `/leaderboard` | `src/routes/leaderboard.tsx` | Search and sort run client-side over loader data |
-| `/submit` | `src/routes/submit.tsx` | Calls the `submitListing` server function in `src/lib/listings.functions.ts`, whose `submissionInput` schema validates every field |
-| `/site/$slug` | `src/routes/site.$slug.tsx` | Details, bid history, `BidPanel` (bidding disabled until a payment provider is connected) |
-| `/dashboard` | `src/routes/dashboard.tsx` | Signed-in view of your websites, bids and receipts |
-| `/how-it-works` | `src/routes/how-it-works.tsx` | FAQ and an example of the fee breakdown |
+| Route           | File                          | Notes                                                                                                                              |
+| --------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `/`             | `src/routes/index.tsx`        | Hero, top 3, how it works, top 10, recent bids                                                                                     |
+| `/leaderboard`  | `src/routes/leaderboard.tsx`  | Search and sort run client-side over loader data                                                                                   |
+| `/submit`       | `src/routes/submit.tsx`       | Calls the `submitListing` server function in `src/lib/listings.functions.ts`, whose `submissionInput` schema validates every field |
+| `/site/$slug`   | `src/routes/site.$slug.tsx`   | Details, bid history, `BidPanel` (bidding disabled until a payment provider is connected)                                          |
+| `/dashboard`    | `src/routes/dashboard.tsx`    | Signed-in view of your websites, bids and receipts                                                                                 |
+| `/how-it-works` | `src/routes/how-it-works.tsx` | FAQ and an example of the fee breakdown                                                                                            |
 
 ### Key modules
 

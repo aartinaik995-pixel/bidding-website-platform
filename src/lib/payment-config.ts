@@ -9,7 +9,7 @@ export type PaypalConfig =
   | { enabled: false; reason: string }
   | {
       enabled: true;
-      environment: 'sandbox';
+      environment: "sandbox";
       clientId: string;
       clientSecret: string;
     };
@@ -17,20 +17,20 @@ export type PaypalConfig =
 type Env = Record<string, string | undefined>;
 
 export function resolvePaypalConfig(env: Env): PaypalConfig {
-  if (env.PAYPAL_ENABLED !== 'true')
-    return { enabled: false, reason: 'Payments are disabled.' }
-  if (env.PAYPAL_ENVIRONMENT !== 'sandbox')
+  if (env.PAYPAL_ENABLED !== "true")
+    return { enabled: false, reason: "Payments are disabled." };
+  if (env.PAYPAL_ENVIRONMENT !== "sandbox")
     return {
       enabled: false,
       reason:
-        'Only the PayPal sandbox can be enabled until legal review and PayPal approval are complete.',
-    }
-  const clientId = env.PAYPAL_CLIENT_ID?.trim() ?? ''
-  const clientSecret = env.PAYPAL_CLIENT_SECRET?.trim() ?? ''
+        "Only the PayPal sandbox can be enabled until legal review and PayPal approval are complete.",
+    };
+  const clientId = env.PAYPAL_CLIENT_ID?.trim() ?? "";
+  const clientSecret = env.PAYPAL_CLIENT_SECRET?.trim() ?? "";
   if (!clientId || !clientSecret)
     return {
       enabled: false,
-      reason: 'PayPal sandbox credentials are not configured.',
-    }
-  return { enabled: true, environment: 'sandbox', clientId, clientSecret }
+      reason: "PayPal sandbox credentials are not configured.",
+    };
+  return { enabled: true, environment: "sandbox", clientId, clientSecret };
 }

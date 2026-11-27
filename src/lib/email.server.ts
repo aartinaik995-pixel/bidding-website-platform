@@ -82,7 +82,10 @@ export function buildMessage(
 class ReplyReader {
   private buffer = "";
   private lines: string[] = [];
-  private waiting: { resolve: (line: string) => void; reject: (e: Error) => void }[] = [];
+  private waiting: {
+    resolve: (line: string) => void;
+    reject: (e: Error) => void;
+  }[] = [];
   private failure: Error | null = null;
 
   constructor(socket: Socket) {
@@ -97,7 +100,9 @@ class ReplyReader {
       }
     });
     socket.on("error", (error) => this.fail(error));
-    socket.on("close", () => this.fail(new Error("The mail server closed the connection.")));
+    socket.on("close", () =>
+      this.fail(new Error("The mail server closed the connection.")),
+    );
     socket.on("timeout", () => {
       this.fail(new Error("The mail server timed out."));
       socket.destroy();
@@ -119,7 +124,9 @@ class ReplyReader {
     const line = this.lines.shift();
     if (line !== undefined) return Promise.resolve(line);
     if (this.failure) return Promise.reject(this.failure);
-    return new Promise((resolve, reject) => this.waiting.push({ resolve, reject }));
+    return new Promise((resolve, reject) =>
+      this.waiting.push({ resolve, reject }),
+    );
   }
 
   async reply(): Promise<number> {
@@ -182,8 +189,18 @@ export async function sendEmail(
     if (greeting !== 220) throw new SmtpRejected(greeting);
     await command(socket, replies, `EHLO ${EHLO_NAME}`, [250]);
     await command(socket, replies, "AUTH LOGIN", [334]);
-    await command(socket, replies, Buffer.from(config.user).toString("base64"), [334]);
-    await command(socket, replies, Buffer.from(config.pass).toString("base64"), [235]);
+    await command(
+      socket,
+      replies,
+      Buffer.from(config.user).toString("base64"),
+      [334],
+    );
+    await command(
+      socket,
+      replies,
+      Buffer.from(config.pass).toString("base64"),
+      [235],
+    );
     await command(socket, replies, `MAIL FROM:<${from}>`, [250]);
     await command(socket, replies, `RCPT TO:<${recipient}>`, [250, 251]);
     await command(socket, replies, "DATA", [354]);

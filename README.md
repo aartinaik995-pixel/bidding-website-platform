@@ -39,16 +39,16 @@ netlify dev        # or: pnpm dev (no Netlify Forms emulation)
 
 ## Settings needed for launch
 
-| What | Where | When |
-| --- | --- | --- |
-| Netlify Database | Provisioned automatically by Netlify on first use | Already wired |
-| Netlify Identity | Enabled automatically when accounts are added | Already wired |
-| Admin user | Assign the `admin` role to the owner in Netlify Identity | Before admin actions |
-| `PAYPAL_ENABLED`, `PAYPAL_ENVIRONMENT`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` | Netlify environment variables | Sandbox testing only |
-| `PAYPAL_WEBHOOK_ID` | Netlify environment variables, from the sandbox webhook | Sandbox testing only |
-| Webhook URL `https://<site>/api/paypal-webhook` | PayPal developer dashboard, sandbox app | Sandbox testing only |
+| What                                                                                                | Where                                                                                                                         | When                 |
+| --------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------- |
+| Netlify Database                                                                                    | Provisioned automatically by Netlify on first use                                                                             | Already wired        |
+| Netlify Identity                                                                                    | Enabled automatically when accounts are added                                                                                 | Already wired        |
+| Admin user                                                                                          | Assign the `admin` role to the owner in Netlify Identity                                                                      | Before admin actions |
+| `PAYPAL_ENABLED`, `PAYPAL_ENVIRONMENT`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`                  | Netlify environment variables                                                                                                 | Sandbox testing only |
+| `PAYPAL_WEBHOOK_ID`                                                                                 | Netlify environment variables, from the sandbox webhook                                                                       | Sandbox testing only |
+| Webhook URL `https://<site>/api/paypal-webhook`                                                     | PayPal developer dashboard, sandbox app                                                                                       | Sandbox testing only |
 | `EMAIL_ENABLED` (set to `true` only after a verified test send), `GMAIL_USER`, `GMAIL_APP_PASSWORD` | Netlify environment variables. The app password needs 2-Step Verification and is created at myaccount.google.com/apppasswords | Before sending email |
-| `SITE_URL` | Optional override; Netlify's `URL` is used otherwise | Only if needed |
+| `SITE_URL`                                                                                          | Optional override; Netlify's `URL` is used otherwise                                                                          | Only if needed       |
 
 Copy `.env.example` for local settings. Never commit real secrets. Live PayPal is refused by the code until legal review and PayPal approval are complete, so a live environment value has no effect.
 

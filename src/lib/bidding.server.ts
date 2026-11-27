@@ -92,7 +92,9 @@ export async function startBid(
  * this bid (checked through custom_id) and the database checks the amount.
  * Returns the bid status after settlement.
  */
-export async function settleReturn(orderId: string): Promise<"paid" | "pending" | "failed"> {
+export async function settleReturn(
+  orderId: string,
+): Promise<"paid" | "pending" | "failed"> {
   requirePayments();
   const [bid] = await db
     .select({
@@ -127,7 +129,9 @@ export async function settleReturn(orderId: string): Promise<"paid" | "pending" 
   const result = await db.execute(
     sql`select settle_verified_bid(${orderId}, ${captured.captureId}, ${captured.amountCents}, ${paidAt}::timestamptz) as result`,
   );
-  const rows = Array.isArray(result) ? result : ((result as { rows?: unknown[] }).rows ?? []);
+  const rows = Array.isArray(result)
+    ? result
+    : ((result as { rows?: unknown[] }).rows ?? []);
   const status = (rows[0] as { result?: unknown } | undefined)?.result;
   return status === "paid" || status === "already-paid" ? "paid" : "pending";
 }
@@ -138,5 +142,7 @@ export async function cancelPendingBid(orderId: string): Promise<void> {
   await db
     .update(bids)
     .set({ status: "failed" })
-    .where(sql`${bids.paypalOrderId} = ${orderId} and ${bids.status} = 'pending'`);
+    .where(
+      sql`${bids.paypalOrderId} = ${orderId} and ${bids.status} = 'pending'`,
+    );
 }

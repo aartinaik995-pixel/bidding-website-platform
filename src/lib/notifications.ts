@@ -11,8 +11,8 @@ export function emailDeliveryConfigured(
 ): boolean {
   return Boolean(
     env.EMAIL_ENABLED === "true" &&
-      env.GMAIL_USER?.trim() &&
-      env.GMAIL_APP_PASSWORD?.trim(),
+    env.GMAIL_USER?.trim() &&
+    env.GMAIL_APP_PASSWORD?.trim(),
   );
 }
 

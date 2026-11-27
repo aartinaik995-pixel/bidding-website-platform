@@ -7,12 +7,19 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { bids, users } from "../../db/schema.js";
 import { sendEmail } from "./email.server";
-import { PAYMENTS_DISABLED_MESSAGE, refundCapture, verifyWebhookSignature } from "./paypal.server";
+import {
+  PAYMENTS_DISABLED_MESSAGE,
+  refundCapture,
+  verifyWebhookSignature,
+} from "./paypal.server";
 import { resolvePaypalConfig } from "./payment-config";
 import { renderBidReceipt, renderRefundNotice } from "./notifications";
 
 function json(body: unknown, status: number) {
-  return Response.json(body, { status, headers: { "Cache-Control": "no-store" } });
+  return Response.json(body, {
+    status,
+    headers: { "Cache-Control": "no-store" },
+  });
 }
 
 function firstRow(result: unknown): Record<string, unknown> | undefined {
@@ -56,8 +63,14 @@ export async function handlePaypalWebhook(request: Request): Promise<Response> {
   const orderId = resource.supplementary_data?.related_ids?.order_id;
   const value = resource.amount?.value;
   const paidAt =
-    typeof resource.create_time === "string" ? resource.create_time : new Date().toISOString();
-  if (typeof captureId !== "string" || typeof orderId !== "string" || typeof value !== "string")
+    typeof resource.create_time === "string"
+      ? resource.create_time
+      : new Date().toISOString();
+  if (
+    typeof captureId !== "string" ||
+    typeof orderId !== "string" ||
+    typeof value !== "string"
+  )
     return json({ error: "Event is missing payment details." }, 400);
 
   const cents = Math.round(Number(value) * 100);
@@ -113,24 +126,39 @@ export async function refundPaidBid(bidId: number): Promise<"refunded"> {
   if (bid.status !== "paid" || !bid.paypalCaptureId)
     throw new Error("Only a paid PayPal bid can be refunded.");
 
-  const refundId = await refundCapture(bid.paypalCaptureId, bid.totalChargeCents);
+  const refundId = await refundCapture(
+    bid.paypalCaptureId,
+    bid.totalChargeCents,
+  );
   try {
     await db.execute(
       sql`select refund_verified_bid(${bid.id}, now()) as result`,
     );
   } catch (error) {
-    console.error(`PayPal refund ${refundId} succeeded but the database update failed.`, error);
-    throw new Error("The refund was sent to PayPal but could not be recorded. Check the logs.", { cause: error });
+    console.error(
+      `PayPal refund ${refundId} succeeded but the database update failed.`,
+      error,
+    );
+    throw new Error(
+      "The refund was sent to PayPal but could not be recorded. Check the logs.",
+      { cause: error },
+    );
   }
 
   const [recipient] = await db
-    .select({ email: users.email, title: sql<string>`(select title from listings where listings.id = ${bid.listingId})` })
+    .select({
+      email: users.email,
+      title: sql<string>`(select title from listings where listings.id = ${bid.listingId})`,
+    })
     .from(users)
     .where(eq(users.id, bid.bidderId));
   if (recipient) {
     await sendEmail(
       recipient.email,
-      renderRefundNotice({ title: recipient.title, refundCents: bid.totalChargeCents }),
+      renderRefundNotice({
+        title: recipient.title,
+        refundCents: bid.totalChargeCents,
+      }),
     ).catch(() => undefined);
   }
   return "refunded";

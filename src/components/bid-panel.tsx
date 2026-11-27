@@ -141,13 +141,17 @@ export function BidPanel({
               window.location.assign(approveUrl);
             } catch (error) {
               toast.error(
-                error instanceof Error ? error.message : "Could not start the bid.",
+                error instanceof Error
+                  ? error.message
+                  : "Could not start the bid.",
               );
               setPending(false);
             }
           }}
         >
-          {pending ? "Opening PayPal…" : `Continue to PayPal · ${formatMoney(totalChargeCents)}`}
+          {pending
+            ? "Opening PayPal…"
+            : `Continue to PayPal · ${formatMoney(totalChargeCents)}`}
         </Button>
       )}
       <p className="mt-3 text-xs text-muted-foreground">

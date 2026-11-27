@@ -10,7 +10,8 @@ export function SiteFooter() {
         <div className="space-y-3">
           <BrandMark className="text-ink-foreground" />
           <p className="max-w-sm text-sm text-ink-foreground/70">
-            A public leaderboard for websites. Bidding is not open yet. No bots, no invented bids.
+            A public leaderboard for websites. Bidding is not open yet. No bots,
+            no invented bids.
           </p>
         </div>
         <div>

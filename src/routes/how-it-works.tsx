@@ -56,7 +56,8 @@ function HowItWorksPage() {
           How BidMySite works
         </h1>
         <p className="mt-3 text-lg text-muted-foreground">
-          A public leaderboard for websites. Bidding is not open yet. When it opens, you will see exactly where every cent goes.
+          A public leaderboard for websites. Bidding is not open yet. When it
+          opens, you will see exactly where every cent goes.
         </p>
       </div>
 
