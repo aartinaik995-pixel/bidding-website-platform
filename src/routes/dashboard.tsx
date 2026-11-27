@@ -32,9 +32,34 @@ export const Route = createFileRoute('/dashboard')({
     if (!user)
       throw redirect({ to: '/login', search: { redirect: location.href } })
   },
+  validateSearch: (search: Record<string, unknown>): { payment?: string } =>
+    typeof search.payment === 'string' ? { payment: search.payment } : {},
   loader: () => getDashboard(),
   component: DashboardPage,
 })
+
+const PAYMENT_NOTICES: Record<string, { title: string; body: string }> = {
+  paid: {
+    title: 'Payment confirmed',
+    body: 'PayPal confirmed your payment, and your bid now counts toward the ranking.',
+  },
+  pending: {
+    title: 'Payment not confirmed yet',
+    body: 'PayPal has not confirmed this payment. It will count only after it is confirmed.',
+  },
+  cancelled: {
+    title: 'Payment cancelled',
+    body: 'Nothing was charged, and the bid was not placed.',
+  },
+  error: {
+    title: 'Payment could not be completed',
+    body: 'Something went wrong while confirming the payment. Nothing has been counted as paid.',
+  },
+  failed: {
+    title: 'Bid not placed',
+    body: 'This bid was not completed and does not count toward the ranking.',
+  },
+}
 
 function EmptyPanel({
   icon: Icon,
@@ -63,6 +88,8 @@ function EmptyPanel({
 
 function DashboardPage() {
   const { user, listings, bids } = Route.useLoaderData()
+  const { payment } = Route.useSearch()
+  const notice = payment ? PAYMENT_NOTICES[payment] : undefined
   const paid = bids.filter((bid) => bid.status === 'paid')
   const receipts = bids.filter(
     (bid) => bid.status === 'paid' || bid.status === 'refunded',
@@ -71,6 +98,12 @@ function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-content px-4 py-12 sm:px-6">
+      {notice && (
+        <div role="status" className="mb-8 rounded-2xl border bg-card p-5">
+          <p className="font-semibold">{notice.title}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{notice.body}</p>
+        </div>
+      )}
       <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
         <div>
           <h1 className="text-4xl font-extrabold sm:text-5xl">

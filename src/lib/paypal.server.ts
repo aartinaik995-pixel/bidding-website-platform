@@ -48,16 +48,23 @@ function formatUsd(cents: number) {
   return (cents / 100).toFixed(2);
 }
 
-export type CreatedOrder = { orderId: string; totalChargeCents: number };
+export type CreatedOrder = {
+  orderId: string;
+  totalChargeCents: number;
+  approveUrl: string;
+};
 
 /**
  * Creates a sandbox order for a bid. The bid amount plus the platform fee is
- * charged. The caller stores a pending bid with this order id before returning.
+ * charged. The caller stores a pending bid with this order id before sending
+ * the payer to approveUrl.
  */
 export async function createBidOrder(input: {
   listingId: number;
   bidderId: string;
   amountCents: number;
+  returnUrl: string;
+  cancelUrl: string;
 }): Promise<CreatedOrder> {
   const config = requireSandbox();
   const { totalChargeCents } = feeBreakdown(input.amountCents);
@@ -79,12 +86,30 @@ export async function createBidOrder(input: {
           amount: { currency_code: "USD", value: formatUsd(totalChargeCents) },
         },
       ],
+      payment_source: {
+        paypal: {
+          experience_context: {
+            return_url: input.returnUrl,
+            cancel_url: input.cancelUrl,
+            user_action: "PAY_NOW",
+            shipping_preference: "NO_SHIPPING",
+          },
+        },
+      },
     }),
   });
   if (!response.ok) throw new Error("PayPal could not create the order.");
-  const body = (await response.json()) as { id?: unknown };
+  const body = (await response.json()) as {
+    id?: unknown;
+    links?: { rel?: unknown; href?: unknown }[];
+  };
   if (typeof body.id !== "string") throw new Error("PayPal returned no order id.");
-  return { orderId: body.id, totalChargeCents };
+  const approve = body.links?.find(
+    (link) => link.rel === "payer-action" || link.rel === "approve",
+  );
+  if (typeof approve?.href !== "string")
+    throw new Error("PayPal returned no approval link.");
+  return { orderId: body.id, totalChargeCents, approveUrl: approve.href };
 }
 
 export type CapturedOrder = {

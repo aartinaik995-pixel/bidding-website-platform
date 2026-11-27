@@ -1,5 +1,8 @@
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { Lock } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,20 +14,32 @@ import {
   isValidBidAmount,
   PLATFORM,
 } from "@/lib/platform";
+import { placeBid } from "@/lib/bids.functions";
 
 /**
- * Bid amount picker with a transparent fee breakdown. Bidding is disabled
- * until a payment provider is connected, so no bid can be placed from here.
+ * Bid amount picker with a transparent fee breakdown. The bid button works only
+ * when the server reports payments enabled and the visitor is signed in. The
+ * server re-checks both before any PayPal order is created.
  */
 export function BidPanel({
+  listingId,
+  slug,
   currentTotalCents,
   leaderTotalCents,
   isLeader,
+  paymentsEnabled,
+  signedIn,
 }: {
+  listingId: number;
+  slug: string;
   currentTotalCents: number;
   leaderTotalCents: number;
   isLeader: boolean;
+  paymentsEnabled: boolean;
+  signedIn: boolean;
 }) {
+  const place = useServerFn(placeBid);
+  const [pending, setPending] = useState(false);
   const toLead = isLeader
     ? PLATFORM.minBidCents
     : Math.max(
@@ -102,12 +117,43 @@ export function BidPanel({
         </div>
       </dl>
 
-      <Button className="mt-5 w-full" size="lg" disabled>
-        <Lock /> Bidding is not available yet
-      </Button>
+      {!signedIn ? (
+        <Button asChild className="mt-5 w-full" size="lg">
+          <Link to="/login" search={{ redirect: `/site/${slug}` }}>
+            Sign in to bid
+          </Link>
+        </Button>
+      ) : !paymentsEnabled ? (
+        <Button className="mt-5 w-full" size="lg" disabled>
+          <Lock /> Bidding is not open yet
+        </Button>
+      ) : (
+        <Button
+          className="mt-5 w-full"
+          size="lg"
+          disabled={!valid || pending}
+          onClick={async () => {
+            setPending(true);
+            try {
+              const { approveUrl } = await place({
+                data: { listingId, amountCents: cents },
+              });
+              window.location.assign(approveUrl);
+            } catch (error) {
+              toast.error(
+                error instanceof Error ? error.message : "Could not start the bid.",
+              );
+              setPending(false);
+            }
+          }}
+        >
+          {pending ? "Opening PayPal…" : `Continue to PayPal · ${formatMoney(totalChargeCents)}`}
+        </Button>
+      )}
       <p className="mt-3 text-xs text-muted-foreground">
-        No payment provider is connected yet, so no bids can be placed. Bids
-        are counted only after a verified payment is confirmed.
+        {paymentsEnabled
+          ? "You are sent to PayPal to pay. The bid counts only after PayPal confirms the payment."
+          : "Payments are not enabled yet, so no bids can be placed. Bids count only after a verified payment is confirmed."}
       </p>
     </div>
   );

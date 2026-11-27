@@ -12,15 +12,19 @@ import {
 } from "@/components/ui/table";
 import { BidPanel } from "@/components/bid-panel";
 import { ListingHeader } from "@/components/listing-view";
+import { getPaymentsStatus } from "@/lib/bids.functions";
 import { getListingPage } from "@/lib/listings.functions";
 import { formatMoney, timeAgo } from "@/lib/platform";
 import { useLiveRefresh } from "@/lib/use-live-refresh";
 
 export const Route = createFileRoute("/site/$slug")({
   loader: async ({ params }) => {
-    const page = await getListingPage({ data: { slug: params.slug } });
+    const [page, payments] = await Promise.all([
+      getListingPage({ data: { slug: params.slug } }),
+      getPaymentsStatus(),
+    ]);
     if (!page) throw notFound();
-    return page;
+    return { ...page, paymentsEnabled: payments.enabled };
   },
   head: ({ loaderData }) => ({
     meta: loaderData
@@ -37,7 +41,14 @@ export const Route = createFileRoute("/site/$slug")({
 });
 
 function ListingPage() {
-  const { listing, bids, leaderTotalCents, isOwner } = Route.useLoaderData();
+  const {
+    listing,
+    bids,
+    leaderTotalCents,
+    isOwner,
+    signedIn,
+    paymentsEnabled,
+  } = Route.useLoaderData();
   useLiveRefresh();
 
   return (
@@ -135,9 +146,13 @@ function ListingPage() {
 
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <BidPanel
+            listingId={Number(listing.id)}
+            slug={listing.slug}
             currentTotalCents={listing.totalCents}
             leaderTotalCents={leaderTotalCents}
             isLeader={listing.rank === 1}
+            paymentsEnabled={paymentsEnabled}
+            signedIn={signedIn}
           />
         </aside>
       </div>

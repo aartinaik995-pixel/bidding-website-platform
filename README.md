@@ -15,13 +15,15 @@ BidMySite is a public leaderboard where people submit their websites and place p
 
 No sample or invented bids are shown anywhere. Only server-verified payments affect rankings or revenue. No payment provider is connected. Stripe code has been removed, and bidding is disabled, so no bid can be placed. PayPal Checkout is planned but not implemented until its compliance and payment model are verified.
 
-## Current status (November 26, 2026)
+## Current status
 
-- Stripe has been removed from the code, the dependency and the database schema (migration `20261126100000_remove_stripe_references`).
-- Bidding is disabled. No payment provider is connected, and no bid or payment can be created.
-- Verified locally: migrations apply cleanly to a fresh Postgres 16 schema, the schema columns match `db/schema.ts`, URL validation and redirect helpers pass their checks, and all changed TypeScript files parse.
-- Not verified: `pnpm install --frozen-lockfile`, production build, TypeScript, ESLint, Prettier, the test suite, browser flows, mobile layout, and the Netlify deploy preview. Do not treat the site as production-ready until these pass.
-- The 10% platform fee is documented, but no money is collected.
+- Payment code is written but disabled. PayPal is off unless `PAYPAL_ENABLED=true`, `PAYPAL_ENVIRONMENT=sandbox` and both sandbox credentials are set. Live PayPal is refused in code.
+- With payments off, the bid button shows "Bidding is not open yet" and no order or payment can be created.
+- Written: pending-bid creation, PayPal order creation and approval link, return and cancel routes, webhook signature verification, settlement and refunds in SQL (`settle_verified_bid`, `refund_verified_bid`), admin refund button, and receipt/refund email templates.
+- Verified locally: all migrations apply to a fresh Postgres 16 database, the settlement and refund self-check (`tests/db/settlement.test.sql`) passes, the node tests (`npm run test:node`) pass, and changed files parse.
+- Not verified: dependency install, production build, full TypeScript check, ESLint, Prettier, Vitest, browser flows, mobile layout, the Netlify deploy preview, and any PayPal or email call (no sandbox credentials or provider configured).
+- Do not treat the site as production-ready until the unverified items pass.
+- The 10% platform fee is documented, and no money is collected while payments are disabled.
 
 ## Tech
 
@@ -36,13 +38,18 @@ netlify dev        # or: pnpm dev (no Netlify Forms emulation)
 
 ## Settings needed for launch
 
-| What                | Where                                           | When        |
-| ------------------- | ----------------------------------------------- | ----------- |
-| Netlify Database    | Provisioned automatically by Netlify on first use | Milestone 3 |
-| Netlify Identity    | Enabled automatically when accounts are added   | Milestone 2 |
-| Admin user          | Assign the `admin` role to the owner in Netlify Identity | Milestone 2 |
+| What | Where | When |
+| --- | --- | --- |
+| Netlify Database | Provisioned automatically by Netlify on first use | Already wired |
+| Netlify Identity | Enabled automatically when accounts are added | Already wired |
+| Admin user | Assign the `admin` role to the owner in Netlify Identity | Before admin actions |
+| `PAYPAL_ENABLED`, `PAYPAL_ENVIRONMENT`, `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` | Netlify environment variables | Sandbox testing only |
+| `PAYPAL_WEBHOOK_ID` | Netlify environment variables, from the sandbox webhook | Sandbox testing only |
+| Webhook URL `https://<site>/api/paypal-webhook` | PayPal developer dashboard, sandbox app | Sandbox testing only |
+| `EMAIL_API_URL`, `EMAIL_FROM`, `EMAIL_PROVIDER_API_KEY` | Netlify environment variables | Before sending email |
+| `SITE_URL` | Optional override; Netlify's `URL` is used otherwise | Only if needed |
 
-No payment environment variables are read by the application. PayPal settings are added only after the PayPal milestone.
+Copy `.env.example` for local settings. Never commit real secrets. Live PayPal is refused by the code until legal review and PayPal approval are complete, so a live environment value has no effect.
 
 ## Roadmap
 
