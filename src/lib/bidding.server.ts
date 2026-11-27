@@ -107,7 +107,19 @@ export async function settleReturn(orderId: string): Promise<"paid" | "pending" 
   if (bid.status === "paid") return "paid";
   if (bid.status !== "pending") return "failed";
 
-  const captured = await captureBidOrder(orderId);
+  let captured;
+  try {
+    captured = await captureBidOrder(orderId);
+  } catch (error) {
+    // The webhook can settle the order first. PayPal then refuses a second
+    // capture, so re-read the bid before reporting a failure.
+    const [current] = await db
+      .select({ status: bids.status })
+      .from(bids)
+      .where(eq(bids.paypalOrderId, orderId));
+    if (current?.status === "paid") return "paid";
+    throw error;
+  }
   if (captured.customId !== `${bid.listingId}:${bid.bidderId}`)
     throw new Error("The PayPal capture does not belong to this bid.");
 
