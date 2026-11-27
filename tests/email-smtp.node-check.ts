@@ -14,7 +14,7 @@ function fakeSmtp(password: string, received: Received[]) {
     socket.write('220 fake.test ESMTP\r\n')
     let buffer = ''
     let state: 'cmd' | 'user' | 'pass' | 'data' = 'cmd'
-    let current: Received = { user: '', pass: '', from: '', to: '', data: '' }
+    const current: Received = { user: '', pass: '', from: '', to: '', data: '' }
     let dataLines: string[] = []
     socket.on('data', (chunk: string) => {
       buffer += chunk

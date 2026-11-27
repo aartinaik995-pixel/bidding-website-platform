@@ -120,7 +120,7 @@ export async function refundPaidBid(bidId: number): Promise<"refunded"> {
     );
   } catch (error) {
     console.error(`PayPal refund ${refundId} succeeded but the database update failed.`, error);
-    throw new Error("The refund was sent to PayPal but could not be recorded. Check the logs.");
+    throw new Error("The refund was sent to PayPal but could not be recorded. Check the logs.", { cause: error });
   }
 
   const [recipient] = await db
