@@ -85,10 +85,20 @@ export const bids = pgTable(
       .defaultNow(),
     paidAt: timestamp("paid_at", { withTimezone: true }),
     refundedAt: timestamp("refunded_at", { withTimezone: true }),
+    /** PayPal order created for this bid (sandbox until PayPal approval). */
+    paypalOrderId: text("paypal_order_id"),
+    /** PayPal capture that settled this bid. Used to make settlement idempotent. */
+    paypalCaptureId: text("paypal_capture_id"),
   },
   (t) => [
     index("bids_listing_status_idx").on(t.listingId, t.status),
     index("bids_bidder_idx").on(t.bidderId),
+    uniqueIndex("bids_paypal_order_idx")
+      .on(t.paypalOrderId)
+      .where(sql`${t.paypalOrderId} is not null`),
+    uniqueIndex("bids_paypal_capture_idx")
+      .on(t.paypalCaptureId)
+      .where(sql`${t.paypalCaptureId} is not null`),
     check(
       "bids_status_check",
       sql`${t.status} in ('pending', 'paid', 'failed', 'refunded')`,

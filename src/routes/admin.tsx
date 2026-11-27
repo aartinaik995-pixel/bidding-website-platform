@@ -22,11 +22,16 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BidStatusBadge, ListingStatusBadge } from "@/components/status-badges";
 import { getSessionUser } from "@/lib/account.functions";
-import { getAdminOverview, setListingStatus } from "@/lib/admin.functions";
+import {
+  getAdminOverview,
+  refundBid,
+  setListingStatus,
+} from "@/lib/admin.functions";
 import {
   formatMoney,
   hostnameOf,
   timeAgo,
+  type BidStatus,
   type ListingStatus,
 } from "@/lib/platform";
 
@@ -199,6 +204,7 @@ function AdminPage() {
                     <TableHead className="text-right">Bid</TableHead>
                     <TableHead className="text-right">Fee</TableHead>
                     <TableHead className="text-right">Charged</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -222,6 +228,9 @@ function AdminPage() {
                       </TableCell>
                       <TableCell className="tabular text-right">
                         {formatMoney(bid.totalChargeCents)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <RefundButton bidId={Number(bid.id)} status={bid.status} />
                       </TableCell>
                     </TableRow>
                   ))}
@@ -297,6 +306,42 @@ function ListingActions({
         </Button>
       )}
     </div>
+  );
+}
+
+function RefundButton({
+  bidId,
+  status,
+}: {
+  bidId: number;
+  status: BidStatus;
+}) {
+  const router = useRouter();
+  const refund = useServerFn(refundBid);
+  const [pending, setPending] = useState(false);
+
+  if (status !== "paid") return null;
+
+  async function onRefund() {
+    if (!window.confirm("Refund this bid in full? It will leave the ranking.")) return;
+    setPending(true);
+    try {
+      await refund({ data: { bidId } });
+      toast.success("Bid refunded and removed from the ranking.");
+      await router.invalidate();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not refund this bid.",
+      );
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <Button size="sm" variant="outline" disabled={pending} onClick={onRefund}>
+      Refund
+    </Button>
   );
 }
 

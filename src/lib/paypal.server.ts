@@ -138,3 +138,61 @@ export async function captureBidOrder(orderId: string): Promise<CapturedOrder> {
     customId: typeof unit?.custom_id === "string" ? unit.custom_id : null,
   };
 }
+
+/**
+ * Asks PayPal whether a webhook really came from PayPal. Only a SUCCESS result
+ * counts. The raw body must be passed through unchanged.
+ */
+export async function verifyWebhookSignature(
+  headers: Headers,
+  rawBody: string,
+): Promise<boolean> {
+  const config = requireSandbox();
+  const webhookId = process.env.PAYPAL_WEBHOOK_ID?.trim();
+  if (!webhookId) throw new Error("PAYPAL_WEBHOOK_ID is not configured.");
+  const token = await accessToken(config.clientId, config.clientSecret);
+  const response = await fetch(`${SANDBOX_API}/v1/notifications/verify-webhook-signature`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      auth_algo: headers.get("paypal-auth-algo"),
+      cert_url: headers.get("paypal-cert-url"),
+      transmission_id: headers.get("paypal-transmission-id"),
+      transmission_sig: headers.get("paypal-transmission-sig"),
+      transmission_time: headers.get("paypal-transmission-time"),
+      webhook_id: webhookId,
+      webhook_event: JSON.parse(rawBody) as unknown,
+    }),
+  });
+  if (!response.ok) return false;
+  const body = (await response.json()) as { verification_status?: unknown };
+  return body.verification_status === "SUCCESS";
+}
+
+/** Refunds a sandbox capture in full. Returns PayPal's refund id once COMPLETED. */
+export async function refundCapture(
+  captureId: string,
+  amountCents: number,
+): Promise<string> {
+  const config = requireSandbox();
+  const token = await accessToken(config.clientId, config.clientSecret);
+  const response = await fetch(
+    `${SANDBOX_API}/v2/payments/captures/${encodeURIComponent(captureId)}/refund`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "PayPal-Request-Id": crypto.randomUUID(),
+      },
+      body: JSON.stringify({
+        amount: { value: formatUsd(amountCents), currency_code: "USD" },
+      }),
+    },
+  );
+  if (!response.ok) throw new Error("PayPal could not refund the capture.");
+  const body = (await response.json()) as { id?: unknown; status?: unknown };
+  if (body.status !== "COMPLETED" || typeof body.id !== "string")
+    throw new Error("The PayPal refund is not completed.");
+  return body.id;
+}

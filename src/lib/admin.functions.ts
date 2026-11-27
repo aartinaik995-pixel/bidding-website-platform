@@ -9,6 +9,7 @@ import { db } from "../../db/index.js";
 import { bids, listings, platformLedger } from "../../db/schema.js";
 import { requireAdmin } from "./auth.server";
 import { toListing } from "./listings.server";
+import { refundPaidBid } from "./payment-service.server";
 import type { BidStatus } from "./platform";
 
 export const getAdminOverview = createServerFn({ method: "GET" }).handler(
@@ -104,4 +105,12 @@ export const setListingStatus = createServerFn({ method: "POST" })
       .returning({ id: listings.id });
     if (!row) throw new Error("Listing not found.");
     return { ok: true };
+  });
+
+/** Refunds one paid bid in full. Admin only; refused while payments are disabled. */
+export const refundBid = createServerFn({ method: "POST" })
+  .validator(z.object({ bidId: z.coerce.number().int().positive() }))
+  .handler(async ({ data }) => {
+    await requireAdmin();
+    return { status: await refundPaidBid(data.bidId) };
   });
