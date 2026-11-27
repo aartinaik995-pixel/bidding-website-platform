@@ -9,18 +9,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ListingHeader } from "@/components/listing-view";
-import { getPaymentsReady, getSessionUser } from "@/lib/account.functions";
+import { getSessionUser } from "@/lib/account.functions";
 import { submitListing } from "@/lib/listings.functions";
 import { feePercentLabel, formatMoney, PLATFORM } from "@/lib/platform";
 
 export const Route = createFileRoute("/submit")({
   head: () => ({ meta: [{ title: "Submit your website · BidMySite" }] }),
   loader: async () => {
-    const [user, paymentsReady] = await Promise.all([
-      getSessionUser(),
-      getPaymentsReady(),
-    ]);
-    return { user, paymentsReady };
+    const user = await getSessionUser();
+    return { user };
   },
   component: SubmitPage,
 });
@@ -30,7 +27,7 @@ type State = "idle" | "pending" | "success" | "error";
 const DESCRIPTION_MAX = 280;
 
 function SubmitPage() {
-  const { user, paymentsReady } = Route.useLoaderData();
+  const { user } = Route.useLoaderData();
   const router = useRouter();
   const save = useServerFn(submitListing);
   const [state, setState] = useState<State>("idle");
@@ -93,9 +90,8 @@ function SubmitPage() {
               Your website is published
             </h2>
             <p className="mt-2 text-muted-foreground">
-              Your public listing is live. It appears in rankings only after a
-              payment provider confirms its first bid. You can share its page
-              now or follow bids from your dashboard.
+              Your public listing is live. It has no bids yet, because bidding
+              is not open. You can share its page now.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               {savedSlug ? (
@@ -125,8 +121,8 @@ function SubmitPage() {
             <LogIn className="size-10 text-primary" />
             <h2 className="mt-4 text-2xl font-bold">Sign in to submit</h2>
             <p className="mt-2 text-muted-foreground">
-              Listings belong to an account so you can track their rank, bids
-              and receipts. It's free and takes a minute.
+              Listings belong to an account so you can manage them from your
+              dashboard. It's free and takes a minute.
             </p>
             <div className="mt-6 flex flex-col gap-3 sm:flex-row">
               <Button asChild>
@@ -228,10 +224,8 @@ function SubmitPage() {
               <p className="text-xs text-muted-foreground">
                 Submitting is free. Bids start at{" "}
                 {formatMoney(PLATFORM.minBidCents)} plus a {feePercentLabel()}{" "}
-                platform fee.{" "}
-                {paymentsReady
-                  ? "Stripe Checkout is configured for secure payment."
-                  : "Checkout is unavailable until payment credentials are configured; no payment can be taken yet."}
+                platform fee. Bidding is not available yet, because no payment
+                provider is connected.
               </p>
             </fieldset>
           </form>

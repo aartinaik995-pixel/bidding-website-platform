@@ -10,23 +10,23 @@ This document describes the project for developers and AI agents working on this
 
 ### Non-negotiable product rule
 
-Never show invented bids, sample listings or a "payment succeeded" state that isn't backed by a server-verified payment (Stripe webhook → `bids.status = 'paid'`). Empty states are intentional. Don't add demo data to make screens look full.
+Never show invented bids, sample listings or a "payment succeeded" state that isn't backed by a server-verified payment (a verified payment-provider webhook → `bids.status = 'paid'`; none is connected yet). Empty states are intentional. Don't add demo data to make screens look full.
 
 ### App map
 
-| Route | File | Notes |
-| --- | --- | --- |
-| `/` | `src/routes/index.tsx` | Hero, top 3, how it works, top 10, recent bids |
-| `/leaderboard` | `src/routes/leaderboard.tsx` | Search and sort run client-side over loader data |
-| `/submit` | `src/routes/submit.tsx` | Netlify Forms `listing-request`. Its static registration copy is in `public/listing-request-form.html`, and its fields must match |
-| `/site/$slug` | `src/routes/site.$slug.tsx` | Details, bid history, `BidPanel` (checkout disabled until payments ship) |
-| `/dashboard` | `src/routes/dashboard.tsx` | Empty panels until accounts and the database exist |
-| `/how-it-works` | `src/routes/how-it-works.tsx` | FAQ and an example of the fee breakdown |
+| Route           | File                          | Notes                                                                                                                              |
+| --------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `/`             | `src/routes/index.tsx`        | Hero, top 3, how it works, top 10, recent bids                                                                                     |
+| `/leaderboard`  | `src/routes/leaderboard.tsx`  | Search and sort run client-side over loader data                                                                                   |
+| `/submit`       | `src/routes/submit.tsx`       | Calls the `submitListing` server function in `src/lib/listings.functions.ts`, whose `submissionInput` schema validates every field |
+| `/site/$slug`   | `src/routes/site.$slug.tsx`   | Details, bid history, `BidPanel` (bidding disabled until a payment provider is connected)                                          |
+| `/dashboard`    | `src/routes/dashboard.tsx`    | Signed-in view of your websites, bids and receipts                                                                                 |
+| `/how-it-works` | `src/routes/how-it-works.tsx` | FAQ and an example of the fee breakdown                                                                                            |
 
 ### Key modules
 
 - `src/lib/platform.ts`: platform rules (`PLATFORM`: min/max bid, fee in basis points), shared types (`Listing`, `Bid`), money formatting, `feeBreakdown`, `rankListings`. The server payment code must use these same values.
-- `src/lib/fixtures.ts`: the data access seam. It is empty for now. Replace its function bodies with Netlify Database queries (server functions) and keep the signatures.
+- `src/lib/listings.server.ts`: Netlify Database queries for listings, rankings and bid history. Server-only.
 - `src/components/leaderboard.tsx`: rank badges, `LeaderboardList` and `EmptyLeaderboard` (unclaimed slots).
 - `src/components/listing-view.tsx`: `ListingHeader`, shared by the details page and the Submit preview.
 - `src/components/bid-panel.tsx`: amount picker and fee breakdown.
@@ -54,7 +54,6 @@ The theme is in `src/styles.css`: warm off-white background, ink text, a vivid o
 ```
 ├── public
 │   ├── favicon.ico
-│   └── listing-request-form.html  # Netlify Forms registration for /submit
 ├── src
 │   ├── components
 │   │   ├── error-pages.tsx # Themed 404 and route error pages with home/retry actions.
@@ -65,7 +64,7 @@ The theme is in `src/styles.css`: warm off-white background, ink text, a vivid o
 │   │   └── utils.ts    # cn() helper for merging Tailwind classes.
 │   ├── routes
 │   │   ├── __root.tsx  # HTML shell, <head> metadata (siteName, siteDescription), the tooltip provider, and the toast container.
-│   │   └── index.tsx   # Home route (/): placeholder page to replace.
+│   │   └── index.tsx   # Home route (/).
 │   ├── router.tsx      # Creates the router from the generated route tree.
 │   └── styles.css      # Tailwind import, theme variables for light and dark mode, base styles.
 ├── components.json     # shadcn/ui config, used by `npx shadcn add`.

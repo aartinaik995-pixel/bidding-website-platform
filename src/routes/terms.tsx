@@ -11,7 +11,7 @@ const sections: PolicySection[] = [
   {
     title: "Using BidMySite",
     paragraphs: [
-      "BidMySite provides public website listings and a leaderboard ranked by verified bid totals. You must use an account for submissions and bidding, provide accurate information, and use only payment methods you are authorized to use.",
+      "BidMySite provides public website listings and a leaderboard. Bidding is not open yet. You must use an account for submissions, provide accurate information, and follow these terms.",
       "You are responsible for activity on your account and for keeping its sign-in credentials secure.",
     ],
   },
@@ -32,8 +32,15 @@ const sections: PolicySection[] = [
   {
     title: "Payments and refunds",
     paragraphs: [
-      "The application currently contains a Stripe Checkout integration. Checkout is available only when the required server-side configuration is present; no Razorpay or PayPal integration is included. The provider name or payment status must not be treated as active unless the application reports checkout as configured.",
+      "No payment provider is currently connected. Bidding is disabled, and no payment or bid counts as active until a provider is connected and its payments are verified on the server.",
       "Confirmed bids are generally final. Full refunds may be issued under the Refund Policy, including when the platform removes a listing. A refunded bid is removed from rankings after the payment provider confirms the refund.",
+    ],
+  },
+  {
+    title: "Governing law and contact",
+    paragraphs: [
+      "BidMySite is operated by Aarti Naik from India. These terms are governed by the laws of India, and disputes are subject to the jurisdiction of the courts of Telangana, India.",
+      "Send questions about these terms to rajpurohitlalit2810@gmail.com.",
     ],
   },
   {

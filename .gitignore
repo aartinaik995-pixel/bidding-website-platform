@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.output/
+.vinxi/
+.netlify/
+coverage/
+*.log
+
+# Secrets and local environment. Only .env.example is tracked.
+.env
+.env.*
+!.env.example

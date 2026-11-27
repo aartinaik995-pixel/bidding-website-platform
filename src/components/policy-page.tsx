@@ -1,4 +1,4 @@
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { OPERATOR } from "@/lib/platform";
 
 export type PolicySection = {
   title: string;
@@ -26,14 +26,24 @@ export function PolicyPage({
       <p className="mt-3 text-muted-foreground">{description}</p>
       <p className="mt-4 text-xs text-muted-foreground">Updated {updated}</p>
 
-      <Alert className="mt-8">
-        <AlertTitle>Operator details still need to be added</AlertTitle>
-        <AlertDescription>
-          The repository does not identify the platform operator’s legal name,
-          governing region, or privacy/support contact. Those verified details
-          must be added before treating these policy pages as final.
-        </AlertDescription>
-      </Alert>
+      <div className="mt-8 rounded-xl border bg-card p-4 text-sm">
+        <p>
+          <span className="font-semibold">Operator:</span> {OPERATOR.name}
+        </p>
+        <p>
+          <span className="font-semibold">Privacy and support contact:</span>{" "}
+          <a
+            href={`mailto:${OPERATOR.contactEmail}`}
+            className="font-medium text-primary underline"
+          >
+            {OPERATOR.contactEmail}
+          </a>
+        </p>
+        <p className="mt-2 text-muted-foreground">
+          Governing law is India (Telangana). Business registration and a
+          business address are not stated on these pages yet.
+        </p>
+      </div>
 
       <div className="mt-10 space-y-8">
         {sections.map((section) => (

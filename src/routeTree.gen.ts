@@ -19,8 +19,9 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RefundPolicyRouteImport } from './routes/refund-policy'
 import { Route as SubmitRouteImport } from './routes/submit'
 import { Route as TermsRouteImport } from './routes/terms'
-import { Route as ApiStripeWebhookRouteImport } from './routes/api.stripe-webhook'
-import { Route as CheckoutSuccessRouteImport } from './routes/checkout.success'
+import { Route as ApiPaypalCancelRouteImport } from './routes/api.paypal-cancel'
+import { Route as ApiPaypalReturnRouteImport } from './routes/api.paypal-return'
+import { Route as ApiPaypalWebhookRouteImport } from './routes/api.paypal-webhook'
 import { Route as SiteSlugRouteImport } from './routes/site.$slug'
 import { Route as ApiAdminRevenueCsvRouteImport } from './routes/api.admin.revenue-csv'
 
@@ -74,14 +75,19 @@ const TermsRoute = TermsRouteImport.update({
   path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiStripeWebhookRoute = ApiStripeWebhookRouteImport.update({
-  id: '/api/stripe-webhook',
-  path: '/api/stripe-webhook',
+const ApiPaypalCancelRoute = ApiPaypalCancelRouteImport.update({
+  id: '/api/paypal-cancel',
+  path: '/api/paypal-cancel',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CheckoutSuccessRoute = CheckoutSuccessRouteImport.update({
-  id: '/checkout/success',
-  path: '/checkout/success',
+const ApiPaypalReturnRoute = ApiPaypalReturnRouteImport.update({
+  id: '/api/paypal-return',
+  path: '/api/paypal-return',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPaypalWebhookRoute = ApiPaypalWebhookRouteImport.update({
+  id: '/api/paypal-webhook',
+  path: '/api/paypal-webhook',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SiteSlugRoute = SiteSlugRouteImport.update({
@@ -106,8 +112,9 @@ export interface FileRoutesByFullPath {
   '/refund-policy': typeof RefundPolicyRoute
   '/submit': typeof SubmitRoute
   '/terms': typeof TermsRoute
-  '/api/stripe-webhook': typeof ApiStripeWebhookRoute
-  '/checkout/success': typeof CheckoutSuccessRoute
+  '/api/paypal-cancel': typeof ApiPaypalCancelRoute
+  '/api/paypal-return': typeof ApiPaypalReturnRoute
+  '/api/paypal-webhook': typeof ApiPaypalWebhookRoute
   '/site/$slug': typeof SiteSlugRoute
   '/api/admin/revenue-csv': typeof ApiAdminRevenueCsvRoute
 }
@@ -122,8 +129,9 @@ export interface FileRoutesByTo {
   '/refund-policy': typeof RefundPolicyRoute
   '/submit': typeof SubmitRoute
   '/terms': typeof TermsRoute
-  '/api/stripe-webhook': typeof ApiStripeWebhookRoute
-  '/checkout/success': typeof CheckoutSuccessRoute
+  '/api/paypal-cancel': typeof ApiPaypalCancelRoute
+  '/api/paypal-return': typeof ApiPaypalReturnRoute
+  '/api/paypal-webhook': typeof ApiPaypalWebhookRoute
   '/site/$slug': typeof SiteSlugRoute
   '/api/admin/revenue-csv': typeof ApiAdminRevenueCsvRoute
 }
@@ -139,8 +147,9 @@ export interface FileRoutesById {
   '/refund-policy': typeof RefundPolicyRoute
   '/submit': typeof SubmitRoute
   '/terms': typeof TermsRoute
-  '/api/stripe-webhook': typeof ApiStripeWebhookRoute
-  '/checkout/success': typeof CheckoutSuccessRoute
+  '/api/paypal-cancel': typeof ApiPaypalCancelRoute
+  '/api/paypal-return': typeof ApiPaypalReturnRoute
+  '/api/paypal-webhook': typeof ApiPaypalWebhookRoute
   '/site/$slug': typeof SiteSlugRoute
   '/api/admin/revenue-csv': typeof ApiAdminRevenueCsvRoute
 }
@@ -157,8 +166,9 @@ export interface FileRouteTypes {
     | '/refund-policy'
     | '/submit'
     | '/terms'
-    | '/api/stripe-webhook'
-    | '/checkout/success'
+    | '/api/paypal-cancel'
+    | '/api/paypal-return'
+    | '/api/paypal-webhook'
     | '/site/$slug'
     | '/api/admin/revenue-csv'
   fileRoutesByTo: FileRoutesByTo
@@ -173,8 +183,9 @@ export interface FileRouteTypes {
     | '/refund-policy'
     | '/submit'
     | '/terms'
-    | '/api/stripe-webhook'
-    | '/checkout/success'
+    | '/api/paypal-cancel'
+    | '/api/paypal-return'
+    | '/api/paypal-webhook'
     | '/site/$slug'
     | '/api/admin/revenue-csv'
   id:
@@ -189,8 +200,9 @@ export interface FileRouteTypes {
     | '/refund-policy'
     | '/submit'
     | '/terms'
-    | '/api/stripe-webhook'
-    | '/checkout/success'
+    | '/api/paypal-cancel'
+    | '/api/paypal-return'
+    | '/api/paypal-webhook'
     | '/site/$slug'
     | '/api/admin/revenue-csv'
   fileRoutesById: FileRoutesById
@@ -206,8 +218,9 @@ export interface RootRouteChildren {
   RefundPolicyRoute: typeof RefundPolicyRoute
   SubmitRoute: typeof SubmitRoute
   TermsRoute: typeof TermsRoute
-  ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
-  CheckoutSuccessRoute: typeof CheckoutSuccessRoute
+  ApiPaypalCancelRoute: typeof ApiPaypalCancelRoute
+  ApiPaypalReturnRoute: typeof ApiPaypalReturnRoute
+  ApiPaypalWebhookRoute: typeof ApiPaypalWebhookRoute
   SiteSlugRoute: typeof SiteSlugRoute
   ApiAdminRevenueCsvRoute: typeof ApiAdminRevenueCsvRoute
 }
@@ -284,18 +297,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/stripe-webhook': {
-      id: '/api/stripe-webhook'
-      path: '/api/stripe-webhook'
-      fullPath: '/api/stripe-webhook'
-      preLoaderRoute: typeof ApiStripeWebhookRouteImport
+    '/api/paypal-cancel': {
+      id: '/api/paypal-cancel'
+      path: '/api/paypal-cancel'
+      fullPath: '/api/paypal-cancel'
+      preLoaderRoute: typeof ApiPaypalCancelRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/checkout/success': {
-      id: '/checkout/success'
-      path: '/checkout/success'
-      fullPath: '/checkout/success'
-      preLoaderRoute: typeof CheckoutSuccessRouteImport
+    '/api/paypal-return': {
+      id: '/api/paypal-return'
+      path: '/api/paypal-return'
+      fullPath: '/api/paypal-return'
+      preLoaderRoute: typeof ApiPaypalReturnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/paypal-webhook': {
+      id: '/api/paypal-webhook'
+      path: '/api/paypal-webhook'
+      fullPath: '/api/paypal-webhook'
+      preLoaderRoute: typeof ApiPaypalWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/site/$slug': {
@@ -326,8 +346,9 @@ const rootRouteChildren: RootRouteChildren = {
   RefundPolicyRoute: RefundPolicyRoute,
   SubmitRoute: SubmitRoute,
   TermsRoute: TermsRoute,
-  ApiStripeWebhookRoute: ApiStripeWebhookRoute,
-  CheckoutSuccessRoute: CheckoutSuccessRoute,
+  ApiPaypalCancelRoute: ApiPaypalCancelRoute,
+  ApiPaypalReturnRoute: ApiPaypalReturnRoute,
+  ApiPaypalWebhookRoute: ApiPaypalWebhookRoute,
   SiteSlugRoute: SiteSlugRoute,
   ApiAdminRevenueCsvRoute: ApiAdminRevenueCsvRoute,
 }

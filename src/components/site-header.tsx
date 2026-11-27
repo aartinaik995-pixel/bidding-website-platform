@@ -1,4 +1,4 @@
-import { Link } from '@tanstack/react-router'
+import { Link } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   LogOut,
@@ -6,11 +6,11 @@ import {
   Plus,
   ShieldCheck,
   UserRound,
-} from 'lucide-react'
+} from "lucide-react";
 
-import { BrandMark } from '@/components/brand'
-import { useIdentity } from '@/components/identity-provider'
-import { Button } from '@/components/ui/button'
+import { BrandMark } from "@/components/brand";
+import { useIdentity } from "@/components/identity-provider";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,7 +18,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+} from "@/components/ui/dropdown-menu";
 import {
   Sheet,
   SheetClose,
@@ -27,31 +27,31 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from '@/components/ui/sheet'
+} from "@/components/ui/sheet";
 
 const nav = [
-  { to: '/leaderboard', label: 'Leaderboard' },
-  { to: '/how-it-works', label: 'How it works' },
-  { to: '/dashboard', label: 'Dashboard' },
-] as const
+  { to: "/leaderboard", label: "Leaderboard" },
+  { to: "/how-it-works", label: "How it works" },
+  { to: "/dashboard", label: "Dashboard" },
+] as const;
 
 function AccountMenu() {
-  const { user, ready, signOut } = useIdentity()
-  if (!ready) return <span aria-hidden className="hidden h-9 w-20 sm:block" />
+  const { user, ready, signOut } = useIdentity();
+  if (!ready) return <span aria-hidden className="hidden h-9 w-20 sm:block" />;
   if (!user) {
     return (
       <Button asChild variant="ghost" className="hidden sm:inline-flex">
         <Link to="/login">Sign in</Link>
       </Button>
-    )
+    );
   }
-  const isAdmin = user.roles?.includes('admin')
+  const isAdmin = user.roles?.includes("admin");
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="hidden max-w-48 sm:inline-flex">
           <UserRound />
-          <span className="truncate">{user.name || 'Account'}</span>
+          <span className="truncate">{user.name || "Account"}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
@@ -77,12 +77,12 @@ function AccountMenu() {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
+  );
 }
 
 function MobileAccountLinks() {
-  const { user, ready, signOut } = useIdentity()
-  if (!ready) return null
+  const { user, ready, signOut } = useIdentity();
+  if (!ready) return null;
   if (!user) {
     return (
       <SheetClose asChild>
@@ -93,16 +93,16 @@ function MobileAccountLinks() {
           Sign in
         </Link>
       </SheetClose>
-    )
+    );
   }
   return (
     <>
-      {user.roles?.includes('admin') && (
+      {user.roles?.includes("admin") && (
         <SheetClose asChild>
           <Link
             to="/admin"
             className="rounded-md px-3 py-3 text-base font-medium hover:bg-secondary"
-            activeProps={{ className: 'bg-secondary text-primary' }}
+            activeProps={{ className: "bg-secondary text-primary" }}
           >
             Admin
           </Link>
@@ -118,7 +118,7 @@ function MobileAccountLinks() {
         </button>
       </SheetClose>
     </>
-  )
+  );
 }
 
 export function SiteHeader() {
@@ -133,7 +133,7 @@ export function SiteHeader() {
               key={item.to}
               to={item.to}
               className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground motion-reduce:transition-none"
-              activeProps={{ className: 'text-foreground bg-secondary' }}
+              activeProps={{ className: "text-foreground bg-secondary" }}
             >
               {item.label}
             </Link>
@@ -165,13 +165,13 @@ export function SiteHeader() {
                 <SheetDescription>Navigate BidMySite</SheetDescription>
               </SheetHeader>
               <nav aria-label="Mobile" className="flex flex-col gap-1 px-4">
-                {[{ to: '/', label: 'Home' } as const, ...nav].map((item) => (
+                {[{ to: "/", label: "Home" } as const, ...nav].map((item) => (
                   <SheetClose asChild key={item.to}>
                     <Link
                       to={item.to}
                       className="rounded-md px-3 py-3 text-base font-medium hover:bg-secondary"
-                      activeProps={{ className: 'bg-secondary text-primary' }}
-                      activeOptions={{ exact: item.to === '/' }}
+                      activeProps={{ className: "bg-secondary text-primary" }}
+                      activeOptions={{ exact: item.to === "/" }}
                     >
                       {item.label}
                     </Link>
@@ -191,5 +191,5 @@ export function SiteHeader() {
         </div>
       </div>
     </header>
-  )
+  );
 }

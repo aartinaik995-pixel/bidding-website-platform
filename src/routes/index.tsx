@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowRight,
   BadgeCheck,
@@ -7,64 +7,64 @@ import {
   Receipt,
   ShieldCheck,
   TrendingUp,
-} from 'lucide-react'
+} from "lucide-react";
 
-import { Button } from '@/components/ui/button'
+import { Button } from "@/components/ui/button";
 import {
   EmptyLeaderboard,
   LeaderboardList,
   LiveIndicator,
-} from '@/components/leaderboard'
-import { RecentBidsFeed } from '@/components/recent-bids'
-import { getHomeData } from '@/lib/listings.functions'
-import { feePercentLabel, formatMoney, PLATFORM } from '@/lib/platform'
-import { useLiveRefresh } from '@/lib/use-live-refresh'
+} from "@/components/leaderboard";
+import { RecentBidsFeed } from "@/components/recent-bids";
+import { getHomeData } from "@/lib/listings.functions";
+import { feePercentLabel, formatMoney, PLATFORM } from "@/lib/platform";
+import { useLiveRefresh } from "@/lib/use-live-refresh";
 
-export const Route = createFileRoute('/')({
+export const Route = createFileRoute("/")({
   loader: () => getHomeData({ data: { limit: PLATFORM.spotlightSize } }),
   component: Home,
-})
+});
 
 const steps = [
   {
     icon: Globe,
-    title: 'Submit your website',
-    body: 'Add your URL, a title and a short description. Your listing gets its own public page.',
+    title: "Submit your website",
+    body: "Add your URL, a title and a short description. Your listing gets its own public page.",
   },
   {
     icon: Gavel,
-    title: 'Place a paid bid',
-    body: `Bid from ${formatMoney(PLATFORM.minBidCents)}. Every bid adds to your site's total — the higher the total, the higher the rank.`,
+    title: "Bidding (not open yet)",
+    body: "Bidding opens after a payment provider is connected and verified. A platform fee is shown before any payment.",
   },
   {
     icon: TrendingUp,
-    title: 'Climb the leaderboard',
-    body: 'Rankings update the moment a payment is verified. Anyone can outbid you, and you can bid again.',
+    title: "Rank on the leaderboard",
+    body: "Once bidding opens, rankings will use only verified payments. Nothing is ranked on a promise.",
   },
-]
+];
 
 const trust = [
   {
     icon: ShieldCheck,
-    title: 'Verified payments only',
-    body: 'A bid counts only after the payment provider confirms it to our server. Nothing is ranked on a promise.',
+    title: "Verified payments only",
+    body: "A bid counts only after the payment provider confirms it to our server. Nothing is ranked on a promise.",
   },
   {
     icon: BadgeCheck,
-    title: 'No invented activity',
-    body: 'Every number on BidMySite comes from a real, paid bid. Empty means empty.',
+    title: "No invented activity",
+    body: "Every number on BidMySite comes from a real, paid bid. Empty means empty.",
   },
   {
     icon: Receipt,
-    title: 'Clear pricing',
-    body: `A flat ${feePercentLabel()} platform fee is shown before you pay. Your full bid counts toward your rank.`,
+    title: "Clear pricing",
+    body: `A flat ${feePercentLabel()} platform fee will be shown before any payment, once bidding opens.`,
   },
-]
+];
 
 function Home() {
-  const { leaderboard, recentBids } = Route.useLoaderData()
-  useLiveRefresh()
-  const top3 = leaderboard.slice(0, 3)
+  const { leaderboard, recentBids } = Route.useLoaderData();
+  useLiveRefresh();
+  const top3 = leaderboard.slice(0, 3);
 
   return (
     <>
@@ -78,10 +78,10 @@ function Home() {
           <div>
             <LiveIndicator label="Leaderboard is live" />
             <h1 className="mt-6 text-5xl leading-[0.95] font-extrabold sm:text-6xl lg:text-7xl">
-              Outbid the internet.
+              Put your website on the board.
               <br />
               <span className="relative inline-block text-primary">
-                Own the top spot.
+                Get listed in public.
                 <svg
                   aria-hidden
                   viewBox="0 0 300 12"
@@ -99,9 +99,10 @@ function Home() {
               </span>
             </h1>
             <p className="mt-7 max-w-xl text-lg text-muted-foreground">
-              BidMySite is a public leaderboard for websites. Submit yours,
-              place a paid bid and watch it climb. The more you bid, the higher
-              you rank.
+              BidMySite is a public leaderboard for websites. Submit yours to
+              get a public listing page. Bidding is not open yet: it starts only
+              after a payment provider is connected and its payments are
+              verified.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button asChild size="lg" className="h-12 px-6 text-base">
@@ -219,7 +220,7 @@ function Home() {
       <section className="mx-auto max-w-content px-4 sm:px-6">
         <div className="rounded-3xl bg-ink px-6 py-12 text-ink-foreground sm:px-10 md:py-16">
           <h2 className="max-w-2xl text-3xl font-extrabold sm:text-4xl">
-            Real money. Real rankings. Nothing staged.
+            No payments are taken yet. Nothing is staged.
           </h2>
           <div className="mt-10 grid gap-8 md:grid-cols-3">
             {trust.map((item) => (
@@ -243,5 +244,5 @@ function Home() {
         </div>
       </section>
     </>
-  )
+  );
 }

@@ -1,12 +1,12 @@
-import { Link } from '@tanstack/react-router'
-import { cn } from '@/lib/utils'
+import { Link } from "@tanstack/react-router";
+import { cn } from "@/lib/utils";
 
 export function BrandMark({ className }: { className?: string }) {
   return (
     <Link
       to="/"
       className={cn(
-        'inline-flex items-center gap-2 font-display text-lg font-extrabold tracking-tight',
+        "inline-flex items-center gap-2 font-display text-lg font-extrabold tracking-tight",
         className,
       )}
     >
@@ -27,5 +27,5 @@ export function BrandMark({ className }: { className?: string }) {
         BidMy<span className="text-primary">Site</span>
       </span>
     </Link>
-  )
+  );
 }

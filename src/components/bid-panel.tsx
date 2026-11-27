@@ -1,13 +1,12 @@
 import { useState } from "react";
-import { Link, useLocation } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Lock } from "lucide-react";
+import { toast } from "sonner";
 
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createBidCheckout } from "@/lib/account.functions";
 import {
   feeBreakdown,
   feePercentLabel,
@@ -15,33 +14,32 @@ import {
   isValidBidAmount,
   PLATFORM,
 } from "@/lib/platform";
+import { placeBid } from "@/lib/bids.functions";
 
 /**
- * Bid amount picker with a transparent fee breakdown. "Pay" sends only the
- * bid amount to the server, which prices the charge and opens Stripe
- * Checkout. The bid counts only after Stripe confirms the payment.
+ * Bid amount picker with a transparent fee breakdown. The bid button works only
+ * when the server reports payments enabled and the visitor is signed in. The
+ * server re-checks both before any PayPal order is created.
  */
 export function BidPanel({
   listingId,
+  slug,
   currentTotalCents,
   leaderTotalCents,
   isLeader,
-  open,
+  paymentsEnabled,
   signedIn,
-  paymentsReady,
 }: {
-  listingId: string;
+  listingId: number;
+  slug: string;
   currentTotalCents: number;
   leaderTotalCents: number;
   isLeader: boolean;
-  open: boolean;
+  paymentsEnabled: boolean;
   signedIn: boolean;
-  paymentsReady: boolean;
 }) {
-  const location = useLocation();
-  const startCheckout = useServerFn(createBidCheckout);
+  const place = useServerFn(placeBid);
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const toLead = isLeader
     ? PLATFORM.minBidCents
     : Math.max(
@@ -55,25 +53,6 @@ export function BidPanel({
   const presets = [toLead, toLead + 500, toLead + 2000].filter(
     isValidBidAmount,
   );
-
-  async function pay() {
-    if (!valid || pending) return;
-    setPending(true);
-    setError(null);
-    try {
-      const { url } = await startCheckout({
-        data: { listingId: Number(listingId), amountCents: cents },
-      });
-      window.location.assign(url);
-    } catch (err) {
-      setError(
-        err instanceof Error && err.message
-          ? err.message
-          : "Could not open checkout.",
-      );
-      setPending(false);
-    }
-  }
 
   return (
     <div className="rounded-2xl border bg-card p-6">
@@ -133,48 +112,52 @@ export function BidPanel({
           <dd className="tabular">{formatMoney(feeCents)}</dd>
         </div>
         <div className="flex justify-between border-t pt-2 font-bold">
-          <dt>You pay</dt>
+          <dt>Total</dt>
           <dd className="tabular">{formatMoney(totalChargeCents)}</dd>
         </div>
       </dl>
 
-      {error && (
-        <Alert variant="destructive" role="alert" className="mt-5">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      {!open ? (
-        <Button className="mt-5 w-full" size="lg" disabled>
-          <Lock /> Bidding is unavailable for this listing
-        </Button>
-      ) : !paymentsReady ? (
-        <Button className="mt-5 w-full" size="lg" disabled>
-          <Lock /> Secure checkout opening soon
-        </Button>
-      ) : !signedIn ? (
+      {!signedIn ? (
         <Button asChild className="mt-5 w-full" size="lg">
-          <Link to="/login" search={{ redirect: location.pathname }}>
-            <Lock /> Sign in to bid
+          <Link to="/login" search={{ redirect: `/site/${slug}` }}>
+            Sign in to bid
           </Link>
+        </Button>
+      ) : !paymentsEnabled ? (
+        <Button className="mt-5 w-full" size="lg" disabled>
+          <Lock /> Bidding is not open yet
         </Button>
       ) : (
         <Button
           className="mt-5 w-full"
           size="lg"
           disabled={!valid || pending}
-          onClick={pay}
+          onClick={async () => {
+            setPending(true);
+            try {
+              const { approveUrl } = await place({
+                data: { listingId, amountCents: cents },
+              });
+              window.location.assign(approveUrl);
+            } catch (error) {
+              toast.error(
+                error instanceof Error
+                  ? error.message
+                  : "Could not start the bid.",
+              );
+              setPending(false);
+            }
+          }}
         >
-          <Lock />{" "}
           {pending
-            ? "Opening secure checkout…"
-            : `Pay ${formatMoney(totalChargeCents)}`}
+            ? "Opening PayPal…"
+            : `Continue to PayPal · ${formatMoney(totalChargeCents)}`}
         </Button>
       )}
       <p className="mt-3 text-xs text-muted-foreground">
-        {paymentsReady
-          ? "Stripe Checkout is configured. Your bid is added only after Stripe confirms payment to our server."
-          : "Payments are not configured. Checkout is disabled, and no bid will be counted without server confirmation."}
+        {paymentsEnabled
+          ? "You are sent to PayPal to pay. The bid counts only after PayPal confirms the payment."
+          : "Payments are not enabled yet, so no bids can be placed. Bids count only after a verified payment is confirmed."}
       </p>
     </div>
   );

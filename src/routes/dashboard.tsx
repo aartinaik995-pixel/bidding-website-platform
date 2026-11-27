@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react'
-import { createFileRoute, Link, redirect } from '@tanstack/react-router'
+import type { ReactNode } from "react";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import {
   Gavel,
   Globe,
@@ -7,10 +7,10 @@ import {
   Receipt,
   ShieldCheck,
   UserRound,
-} from 'lucide-react'
+} from "lucide-react";
 
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -18,23 +18,48 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { RankBadge } from '@/components/leaderboard'
-import { BidStatusBadge, ListingStatusBadge } from '@/components/status-badges'
-import { getDashboard, getSessionUser } from '@/lib/account.functions'
-import { formatMoney, hostnameOf, timeAgo } from '@/lib/platform'
+} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RankBadge } from "@/components/leaderboard";
+import { BidStatusBadge, ListingStatusBadge } from "@/components/status-badges";
+import { getDashboard, getSessionUser } from "@/lib/account.functions";
+import { formatMoney, hostnameOf, timeAgo } from "@/lib/platform";
 
-export const Route = createFileRoute('/dashboard')({
-  head: () => ({ meta: [{ title: 'Dashboard · BidMySite' }] }),
+export const Route = createFileRoute("/dashboard")({
+  head: () => ({ meta: [{ title: "Dashboard · BidMySite" }] }),
   beforeLoad: async ({ location }) => {
-    const user = await getSessionUser()
+    const user = await getSessionUser();
     if (!user)
-      throw redirect({ to: '/login', search: { redirect: location.href } })
+      throw redirect({ to: "/login", search: { redirect: location.href } });
   },
+  validateSearch: (search: Record<string, unknown>): { payment?: string } =>
+    typeof search.payment === "string" ? { payment: search.payment } : {},
   loader: () => getDashboard(),
   component: DashboardPage,
-})
+});
+
+const PAYMENT_NOTICES: Record<string, { title: string; body: string }> = {
+  paid: {
+    title: "Payment confirmed",
+    body: "PayPal confirmed your payment, and your bid now counts toward the ranking.",
+  },
+  pending: {
+    title: "Payment not confirmed yet",
+    body: "PayPal has not confirmed this payment. It will count only after it is confirmed.",
+  },
+  cancelled: {
+    title: "Payment cancelled",
+    body: "Nothing was charged, and the bid was not placed.",
+  },
+  error: {
+    title: "Payment could not be completed",
+    body: "Something went wrong while confirming the payment. Nothing has been counted as paid.",
+  },
+  failed: {
+    title: "Bid not placed",
+    body: "This bid was not completed and does not count toward the ranking.",
+  },
+};
 
 function EmptyPanel({
   icon: Icon,
@@ -42,10 +67,10 @@ function EmptyPanel({
   body,
   action,
 }: {
-  icon: typeof Globe
-  title: string
-  body: string
-  action?: ReactNode
+  icon: typeof Globe;
+  title: string;
+  body: string;
+  action?: ReactNode;
 }) {
   return (
     <div className="rounded-2xl border border-dashed bg-card px-6 py-14 text-center">
@@ -58,27 +83,34 @@ function EmptyPanel({
       </p>
       {action && <div className="mt-5">{action}</div>}
     </div>
-  )
+  );
 }
 
 function DashboardPage() {
-  const { user, listings, bids } = Route.useLoaderData()
-  const paid = bids.filter((bid) => bid.status === 'paid')
+  const { user, listings, bids } = Route.useLoaderData();
+  const { payment } = Route.useSearch();
+  const notice = payment ? PAYMENT_NOTICES[payment] : undefined;
+  const paid = bids.filter((bid) => bid.status === "paid");
   const receipts = bids.filter(
-    (bid) => bid.status === 'paid' || bid.status === 'refunded',
-  )
-  const ranks = listings.map((l) => l.rank).filter((rank) => rank > 0)
+    (bid) => bid.status === "paid" || bid.status === "refunded",
+  );
+  const ranks = listings.map((l) => l.rank).filter((rank) => rank > 0);
 
   return (
     <div className="mx-auto max-w-content px-4 py-12 sm:px-6">
+      {notice && (
+        <div role="status" className="mb-8 rounded-2xl border bg-card p-5">
+          <p className="font-semibold">{notice.title}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{notice.body}</p>
+        </div>
+      )}
       <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
         <div>
           <h1 className="text-4xl font-extrabold sm:text-5xl">
             Your dashboard
           </h1>
           <p className="mt-3 max-w-xl text-muted-foreground">
-            Track your websites, every bid you've placed and your payment
-            receipts in one place.
+            Track your websites from one place. Bidding is not open yet.
           </p>
         </div>
         <Button asChild>
@@ -94,7 +126,7 @@ function DashboardPage() {
         </span>
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-2 font-semibold">
-            {user.name || 'Your account'}
+            {user.name || "Your account"}
             {user.isAdmin && <Badge className="bg-primary">Admin</Badge>}
           </p>
           <p className="mt-1 truncate text-sm text-ink-foreground/70">
@@ -112,11 +144,11 @@ function DashboardPage() {
 
       <dl className="mt-8 grid grid-cols-2 gap-3 md:grid-cols-4">
         {[
-          ['Websites', String(listings.length)],
-          ['Best rank', ranks.length ? `#${Math.min(...ranks)}` : '—'],
-          ['Bids placed', String(paid.length)],
+          ["Websites", String(listings.length)],
+          ["Best rank", ranks.length ? `#${Math.min(...ranks)}` : "—"],
+          ["Bids placed", String(paid.length)],
           [
-            'Total spent',
+            "Total spent",
             formatMoney(
               paid.reduce((sum, bid) => sum + bid.totalChargeCents, 0),
             ),
@@ -169,7 +201,7 @@ function DashboardPage() {
                         <ListingStatusBadge status={listing.status} />
                       </p>
                       <p className="truncate text-sm text-muted-foreground">
-                        {hostnameOf(listing.url)} · submitted{' '}
+                        {hostnameOf(listing.url)} · submitted{" "}
                         {timeAgo(listing.createdAt)}
                       </p>
                     </div>
@@ -179,7 +211,7 @@ function DashboardPage() {
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {listing.bidCount} bid
-                        {listing.bidCount === 1 ? '' : 's'}
+                        {listing.bidCount === 1 ? "" : "s"}
                       </p>
                     </div>
                   </Link>
@@ -193,7 +225,7 @@ function DashboardPage() {
             <EmptyPanel
               icon={Gavel}
               title="No bids placed"
-              body="Every bid you place — and whether its payment was confirmed — is listed here."
+              body="Bids you place will be listed here once bidding opens."
               action={
                 <Button asChild variant="outline">
                   <Link to="/leaderboard">Browse the leaderboard</Link>
@@ -265,7 +297,7 @@ function DashboardPage() {
                       <TableCell className="whitespace-nowrap text-muted-foreground">
                         {bid.paidAt
                           ? new Date(bid.paidAt).toLocaleDateString()
-                          : '—'}
+                          : "—"}
                       </TableCell>
                       <TableCell className="font-medium">
                         {bid.listing.title}
@@ -280,17 +312,7 @@ function DashboardPage() {
                         {formatMoney(bid.totalChargeCents)}
                       </TableCell>
                       <TableCell>
-                        {bid.status === 'refunded' ? (
-                          <BidStatusBadge status="refunded" />
-                        ) : (
-                          <Link
-                            to="/checkout/success"
-                            search={{ bid: Number(bid.id) }}
-                            className="text-sm font-medium text-primary hover:underline"
-                          >
-                            Receipt
-                          </Link>
-                        )}
+                        <BidStatusBadge status={bid.status} />
                       </TableCell>
                     </TableRow>
                   ))}
@@ -301,5 +323,5 @@ function DashboardPage() {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }

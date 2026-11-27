@@ -1,12 +1,12 @@
-import { Link } from '@tanstack/react-router'
-import { Activity } from 'lucide-react'
+import { Link } from "@tanstack/react-router";
+import { Activity } from "lucide-react";
 
-import { formatMoney, timeAgo, type Bid, type Listing } from '@/lib/platform'
+import { formatMoney, timeAgo, type Bid, type Listing } from "@/lib/platform";
 
 export function RecentBidsFeed({
   bids,
 }: {
-  bids: (Bid & { listing?: Listing })[]
+  bids: (Bid & { listing?: Listing })[];
 }) {
   return (
     <section
@@ -24,7 +24,7 @@ export function RecentBidsFeed({
         <div className="mt-6 rounded-xl border border-dashed px-4 py-10 text-center">
           <p className="font-medium">No bids yet</p>
           <p className="mt-1 text-sm text-muted-foreground">
-            Bids appear here the moment their payment is confirmed.
+            Bids will appear here once bidding opens and a payment is verified.
           </p>
         </div>
       ) : (
@@ -36,7 +36,7 @@ export function RecentBidsFeed({
             >
               <div className="min-w-0">
                 <p className="truncate text-sm">
-                  <span className="font-medium">{bid.bidderName}</span> bid on{' '}
+                  <span className="font-medium">{bid.bidderName}</span> bid on{" "}
                   {bid.listing ? (
                     <Link
                       to="/site/$slug"
@@ -46,7 +46,7 @@ export function RecentBidsFeed({
                       {bid.listing.title}
                     </Link>
                   ) : (
-                    'a listing'
+                    "a listing"
                   )}
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -61,5 +61,5 @@ export function RecentBidsFeed({
         </ul>
       )}
     </section>
-  )
+  );
 }

@@ -5,11 +5,6 @@ name: live-sandbox
 
 on:
   workflow_dispatch:
-    inputs:
-      ref:
-        description: Branch to test
-        required: true
-        default: feature/remove-stripe-and-hardening
 
 permissions:
   contents: read
@@ -30,8 +25,6 @@ jobs:
       GMAIL_LIVE_TEST: "1"
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref }}
 
       - name: Check required secrets are set
         run: |

@@ -18,21 +18,21 @@ const sections: PolicySection[] = [
   {
     title: "How refunds work",
     paragraphs: [
-      "The admin dashboard supports full refunds to the original payment method through Stripe. Partial refunds are not supported in the application.",
-      "A refund is not treated as complete until Stripe confirms it. While a refund is processing, the bid may remain in the ranking; once confirmed, the bid and its platform fee are removed from the applicable totals and the ledger records the refund.",
+      "Refunds cannot be issued in the application yet, because no payment provider is connected. Refund terms will be published here before any payment is taken.",
+      "Once refunds are offered, a bid will leave the rankings only after the payment provider confirms the refund, and the ledger will record it.",
       "Payment providers and banks may take additional time to post a completed refund. The application does not promise a specific posting time.",
     ],
   },
   {
     title: "Requesting a refund",
     paragraphs: [
-      "A platform administrator can review a refund request and issue an eligible full refund. The repository does not provide a public support email or contact form; the operator must add a verified support contact before launch.",
+      "A platform administrator can review a refund request and issue an eligible full refund. Send refund and support requests to rajpurohitlalit2810@gmail.com.",
     ],
   },
   {
     title: "Provider availability",
     paragraphs: [
-      "Refunds require a valid Stripe configuration and the original payment record. If checkout is not configured, no new payments can be accepted through the application. Razorpay and PayPal are not implemented.",
+      "No payments are accepted through the application at this time, so no bid can be placed or refunded. No payment provider is currently integrated.",
     ],
   },
 ];
@@ -41,7 +41,7 @@ function RefundPolicyPage() {
   return (
     <PolicyPage
       title="Refund Policy"
-      description="How verified bid payments and full refunds are handled."
+      description="How refunds will be handled once payments are connected. No refunds are available yet."
       updated="October 23, 2026"
       sections={sections}
     />
