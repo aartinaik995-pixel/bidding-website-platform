@@ -13,7 +13,7 @@ permissions:
 jobs:
   checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
 
@@ -30,6 +30,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Production build (regenerates routeTree.gen.ts)
+        if: always()
         run: pnpm build
 
       - name: Save regenerated route tree
@@ -41,21 +42,42 @@ jobs:
           if-no-files-found: ignore
 
       - name: Typecheck
+        if: always()
         run: pnpm typecheck
 
       - name: Lint
+        if: always()
         run: pnpm lint
 
       - name: Format check
+        if: always()
         run: pnpm format:check
 
+      - name: Prepare formatting patch (pinned Prettier output)
+        if: always()
+        run: |
+          pnpm format > /dev/null
+          git diff --binary > "$RUNNER_TEMP/format.patch"
+          echo "files changed by format: $(git diff --name-only | wc -l)"
+
+      - name: Save formatting patch
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: format-patch
+          path: ${{ runner.temp }}/format.patch
+          if-no-files-found: ignore
+
       - name: Unit tests (Vitest)
+        if: always()
         run: pnpm test
 
       - name: Node tests (payment, email, bid logic)
+        if: always()
         env:
           ESBUILD: node_modules/.pnpm/node_modules/esbuild/bin/esbuild
         run: pnpm test:node
 
       - name: Route tree must match the committed file
+        if: always()
         run: git diff --exit-code -- src/routeTree.gen.ts
