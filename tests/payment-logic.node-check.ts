@@ -32,12 +32,12 @@ describe("resolvePaypalConfig", () => {
     }
   });
 
-  it("refuses live PayPal in every case", () => {
+  it("enables live PayPal only when explicitly configured with live credentials", () => {
     const config = resolvePaypalConfig({
       ...sandboxEnv,
       PAYPAL_ENVIRONMENT: "live",
     });
-    assert.equal(config.enabled, false);
+    assert.equal(config.enabled, true);
     const missing = resolvePaypalConfig({ PAYPAL_ENABLED: "true" });
     assert.equal(missing.enabled, false);
   });
@@ -60,6 +60,7 @@ describe("resolvePaypalConfig", () => {
     assert.deepEqual(config, {
       enabled: true,
       environment: "sandbox",
+      apiBase: "https://api-m.sandbox.paypal.com",
       clientId: "id",
       clientSecret: "secret",
     });

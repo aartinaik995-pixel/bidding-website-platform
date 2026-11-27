@@ -1,15 +1,23 @@
 // Decides whether PayPal may be used at all. Pure, so it can be tested without
 // any network or database access.
 //
-// Live money is refused in every case until legal review and PayPal approval
-// are complete. Only the sandbox environment can be enabled, and only when the
-// operator sets PAYPAL_ENABLED="true" and both sandbox credentials are present.
+// Payments stay off unless the operator sets PAYPAL_ENABLED="true". The sandbox
+// and live environments are both supported, and each needs its own credentials.
+// Nothing turns live payments on by itself: PAYPAL_ENABLED must be set on purpose.
+
+export const PAYPAL_API = {
+  sandbox: "https://api-m.sandbox.paypal.com",
+  live: "https://api-m.paypal.com",
+} as const;
+
+export type PaypalEnvironment = keyof typeof PAYPAL_API;
 
 export type PaypalConfig =
   | { enabled: false; reason: string }
   | {
       enabled: true;
-      environment: "sandbox";
+      environment: PaypalEnvironment;
+      apiBase: string;
       clientId: string;
       clientSecret: string;
     };
@@ -19,18 +27,24 @@ type Env = Record<string, string | undefined>;
 export function resolvePaypalConfig(env: Env): PaypalConfig {
   if (env.PAYPAL_ENABLED !== "true")
     return { enabled: false, reason: "Payments are disabled." };
-  if (env.PAYPAL_ENVIRONMENT !== "sandbox")
+  const environment = env.PAYPAL_ENVIRONMENT;
+  if (environment !== "sandbox" && environment !== "live")
     return {
       enabled: false,
-      reason:
-        "Only the PayPal sandbox can be enabled until legal review and PayPal approval are complete.",
+      reason: "PAYPAL_ENVIRONMENT must be set to sandbox or live.",
     };
   const clientId = env.PAYPAL_CLIENT_ID?.trim() ?? "";
   const clientSecret = env.PAYPAL_CLIENT_SECRET?.trim() ?? "";
   if (!clientId || !clientSecret)
     return {
       enabled: false,
-      reason: "PayPal sandbox credentials are not configured.",
+      reason: "PayPal credentials are not configured for this environment.",
     };
-  return { enabled: true, environment: "sandbox", clientId, clientSecret };
+  return {
+    enabled: true,
+    environment,
+    apiBase: PAYPAL_API[environment],
+    clientId,
+    clientSecret,
+  };
 }

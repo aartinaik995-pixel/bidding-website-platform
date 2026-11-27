@@ -1,14 +1,12 @@
-// PayPal REST client for the sandbox. Server-only.
+// PayPal REST client for the sandbox and live environments. Server-only.
 //
-// Every call goes through resolvePaypalConfig(), which refuses unless
-// PAYPAL_ENABLED="true", PAYPAL_ENVIRONMENT="sandbox" and both sandbox
-// credentials are set. Live PayPal is never reachable from this module.
-// Nothing here is called from the UI, so no money can move while the flag is off.
+// Every call goes through requirePaypal(), which refuses unless
+// PAYPAL_ENABLED="true", PAYPAL_ENVIRONMENT is "sandbox" or "live", and that
+// environment's credentials are set. Nothing here is called from the UI, so no
+// money can move while the flag is off.
 
-import { resolvePaypalConfig } from "./payment-config";
+import { resolvePaypalConfig, type PaypalConfig } from "./payment-config";
 import { feeBreakdown } from "./platform";
-
-const SANDBOX_API = "https://api-m.sandbox.paypal.com";
 
 export const PAYMENTS_DISABLED_MESSAGE =
   "Bidding is not open yet, because payments are not enabled.";
@@ -18,22 +16,27 @@ export type PaymentStatus = { enabled: boolean; message: string };
 export function getPaymentStatus(): PaymentStatus {
   const config = resolvePaypalConfig(process.env);
   return config.enabled
-    ? { enabled: true, message: "Payments are enabled in the PayPal sandbox." }
+    ? {
+        enabled: true,
+        message: `Payments are enabled in the PayPal ${config.environment} environment.`,
+      }
     : { enabled: false, message: PAYMENTS_DISABLED_MESSAGE };
 }
 
-function requireSandbox() {
+type EnabledPaypalConfig = Extract<PaypalConfig, { enabled: true }>;
+
+function requirePaypal(): EnabledPaypalConfig {
   const config = resolvePaypalConfig(process.env);
   if (!config.enabled)
     throw new Error(`${PAYMENTS_DISABLED_MESSAGE} ${config.reason}`);
   return config;
 }
 
-async function accessToken(clientId: string, clientSecret: string) {
-  const response = await fetch(`${SANDBOX_API}/v1/oauth2/token`, {
+async function accessToken(config: EnabledPaypalConfig) {
+  const response = await fetch(`${config.apiBase}/v1/oauth2/token`, {
     method: "POST",
     headers: {
-      Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
+      Authorization: `Basic ${Buffer.from(`${config.clientId}:${config.clientSecret}`).toString("base64")}`,
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: "grant_type=client_credentials",
@@ -56,9 +59,9 @@ export type CreatedOrder = {
 };
 
 /**
- * Creates a sandbox order for a bid. The bid amount plus the platform fee is
- * charged. The caller stores a pending bid with this order id before sending
- * the payer to approveUrl.
+ * Creates an order for a bid. The bid amount plus the platform fee is charged.
+ * The caller stores a pending bid with this order id before sending the payer
+ * to approveUrl.
  */
 export async function createBidOrder(input: {
   listingId: number;
@@ -67,10 +70,10 @@ export async function createBidOrder(input: {
   returnUrl: string;
   cancelUrl: string;
 }): Promise<CreatedOrder> {
-  const config = requireSandbox();
+  const config = requirePaypal();
   const { totalChargeCents } = feeBreakdown(input.amountCents);
-  const token = await accessToken(config.clientId, config.clientSecret);
-  const response = await fetch(`${SANDBOX_API}/v2/checkout/orders`, {
+  const token = await accessToken(config);
+  const response = await fetch(`${config.apiBase}/v2/checkout/orders`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
@@ -121,14 +124,14 @@ export type CapturedOrder = {
 };
 
 /**
- * Captures a sandbox order. Only a COMPLETED capture counts; the caller must
- * then check amountCents and customId against the pending bid before ranking.
+ * Captures an order. Only a COMPLETED capture counts; the caller must then
+ * check amountCents and customId against the pending bid before ranking.
  */
 export async function captureBidOrder(orderId: string): Promise<CapturedOrder> {
-  const config = requireSandbox();
-  const token = await accessToken(config.clientId, config.clientSecret);
+  const config = requirePaypal();
+  const token = await accessToken(config);
   const response = await fetch(
-    `${SANDBOX_API}/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`,
+    `${config.apiBase}/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`,
     {
       method: "POST",
       headers: {
@@ -177,12 +180,12 @@ export async function verifyWebhookSignature(
   headers: Headers,
   rawBody: string,
 ): Promise<boolean> {
-  const config = requireSandbox();
+  const config = requirePaypal();
   const webhookId = process.env.PAYPAL_WEBHOOK_ID?.trim();
   if (!webhookId) throw new Error("PAYPAL_WEBHOOK_ID is not configured.");
-  const token = await accessToken(config.clientId, config.clientSecret);
+  const token = await accessToken(config);
   const response = await fetch(
-    `${SANDBOX_API}/v1/notifications/verify-webhook-signature`,
+    `${config.apiBase}/v1/notifications/verify-webhook-signature`,
     {
       method: "POST",
       headers: {
@@ -205,15 +208,15 @@ export async function verifyWebhookSignature(
   return body.verification_status === "SUCCESS";
 }
 
-/** Refunds a sandbox capture in full. Returns PayPal's refund id once COMPLETED. */
+/** Refunds a capture in full. Returns PayPal's refund id once COMPLETED. */
 export async function refundCapture(
   captureId: string,
   amountCents: number,
 ): Promise<string> {
-  const config = requireSandbox();
-  const token = await accessToken(config.clientId, config.clientSecret);
+  const config = requirePaypal();
+  const token = await accessToken(config);
   const response = await fetch(
-    `${SANDBOX_API}/v2/payments/captures/${encodeURIComponent(captureId)}/refund`,
+    `${config.apiBase}/v2/payments/captures/${encodeURIComponent(captureId)}/refund`,
     {
       method: "POST",
       headers: {
