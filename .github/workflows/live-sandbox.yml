@@ -1,0 +1,60 @@
+# Manual only. Runs the PayPal sandbox and Gmail tests with GitHub secrets.
+# It never runs on pull requests or pushes, so no test email or sandbox order is
+# created by accident. Live payments are never enabled here.
+name: live-sandbox
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch to test
+        required: true
+        default: feature/remove-stripe-and-hardening
+
+permissions:
+  contents: read
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PAYPAL_ENABLED: "true"
+      PAYPAL_ENVIRONMENT: sandbox
+      PAYPAL_CLIENT_ID: ${{ secrets.PAYPAL_CLIENT_ID }}
+      PAYPAL_CLIENT_SECRET: ${{ secrets.PAYPAL_CLIENT_SECRET }}
+      PAYPAL_LIVE_TEST: "1"
+      EMAIL_ENABLED: "true"
+      GMAIL_USER: ${{ secrets.GMAIL_USER }}
+      GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+      GMAIL_LIVE_TEST: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Check required secrets are set
+        run: |
+          for name in PAYPAL_CLIENT_ID PAYPAL_CLIENT_SECRET GMAIL_USER GMAIL_APP_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Repository secret $name is not set. Add it under Settings > Secrets and variables > Actions."
+              exit 1
+            fi
+          done
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Live PayPal sandbox and Gmail tests
+        env:
+          ESBUILD: node_modules/.pnpm/node_modules/esbuild/bin/esbuild
+        run: pnpm test:node
