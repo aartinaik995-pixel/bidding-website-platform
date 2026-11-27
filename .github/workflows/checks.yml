@@ -29,6 +29,17 @@ jobs:
       - name: Install (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
+      - name: Production build (regenerates routeTree.gen.ts)
+        run: pnpm build
+
+      - name: Save regenerated route tree
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: routeTree-gen
+          path: src/routeTree.gen.ts
+          if-no-files-found: ignore
+
       - name: Typecheck
         run: pnpm typecheck
 
@@ -45,9 +56,6 @@ jobs:
         env:
           ESBUILD: node_modules/.pnpm/node_modules/esbuild/bin/esbuild
         run: pnpm test:node
-
-      - name: Production build (regenerates routeTree.gen.ts)
-        run: pnpm build
 
       - name: Route tree must match the committed file
         run: git diff --exit-code -- src/routeTree.gen.ts
